@@ -52,6 +52,22 @@ class MenuGroupConfig:
     childs: List[Any]  # List of Union[MenuLayerConfig,MenuGroupConfig]
     embedded: bool
 
+    @classmethod
+    def from_json(cls, data):
+        childs = []
+        for child in data["childs"]:
+            if "childs" in child:
+                childs.append(cls.from_json(child))
+            else:
+                childs.append(MenuLayerConfig(**child))
+        res = cls(
+            name=data["name"],
+            filename=data["filename"],
+            embedded=data["embedded"],
+            childs=childs,
+        )
+        return res
+
 
 @dataclass
 class MenuProjectConfig:
@@ -61,6 +77,25 @@ class MenuProjectConfig:
     filename: str
     uri: str
     root_group: MenuGroupConfig
+
+    @classmethod
+    def from_json(cls, data):
+        """
+        Define User from json data
+
+        Args:
+            data: json data
+
+        Returns: User
+
+        """
+        res = cls(
+            filename=data["filename"],
+            uri=data["uri"],
+            project_name=data["project_name"],
+            root_group=MenuGroupConfig.from_json(data["root_group"]),
+        )
+        return res
 
 
 def get_embedded_project_from_layer_tree(
