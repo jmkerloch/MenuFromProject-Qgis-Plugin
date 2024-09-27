@@ -72,6 +72,24 @@ def is_absolute(doc: QtXml.QDomDocument) -> bool:
     return absolute
 
 
+def project_trusted(doc):
+    """Return if the project is trusted.
+
+    :param doc: The QGIS project as XML document. Default to None.
+    :type doc: QDomDocument
+
+    :return: True of False.
+    :rtype: bool
+    """
+    tags = doc.elementsByTagName("qgis")
+    if tags.count():
+        node = tags.at(0)
+        trust_node = node.namedItem("trust")
+        return trust_node.toElement().attribute("active") == "1"
+
+    return False
+
+
 def create_map_layer_dict(doc: QtXml.QDomDocument) -> Dict[str, QtXml.QDomNode]:
     """Create dict key : layer id, value : layer node
 
