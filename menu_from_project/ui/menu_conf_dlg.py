@@ -9,7 +9,14 @@ import logging
 from functools import partial
 
 # PyQGIS
-from qgis.core import QgsApplication, Qgis
+from menu_from_project.logic.qgs_manager import QgsDomManager
+from menu_from_project.toolbelt.preferences import (
+    SOURCE_MD_LAYER,
+    SOURCE_MD_NOTE,
+    SOURCE_MD_OGC,
+    PlgOptionsManager,
+)
+from qgis.core import QgsApplication, Qgis, QgsMessageLog
 from qgis.gui import QgsProviderGuiRegistry
 from qgis.PyQt import uic
 from qgis.PyQt.QtCore import QRect, Qt
@@ -26,6 +33,7 @@ from qgis.PyQt.QtWidgets import (
     QTableWidgetItem,
     QToolButton,
 )
+from qgis.utils import iface
 
 # project
 from menu_from_project.__about__ import DIR_PLUGIN_ROOT, __title__, __version__
@@ -50,11 +58,13 @@ FORM_CLASS, _ = uic.loadUiType(DIR_PLUGIN_ROOT / "ui/conf_dialog.ui")
 
 
 class MenuConfDialog(QDialog, FORM_CLASS):
-    def __init__(self, parent, plugin):
-        self.plugin = plugin
-        self.parent = parent
+    def __init__(self, parent):
         QDialog.__init__(self, parent)
         self.setupUi(self)
+
+        self.plg_settings = PlgOptionsManager()
+        self.qgs_dom_manager = QgsDomManager()
+
         self.defaultcursor = self.cursor
         self.setWindowTitle(
             self.windowTitle() + " - {} v{}".format(__title__, __version__)
@@ -86,12 +96,14 @@ class MenuConfDialog(QDialog, FORM_CLASS):
             },
         }
 
+        settings = self.plg_settings.get_plg_settings()
+
         # -- Configured projects (table and related buttons)
         self.tableWidget.horizontalHeader().setSectionResizeMode(
             QHeaderView.ResizeToContents
         )
         self.tableWidget.horizontalHeader().setDefaultAlignment(Qt.AlignLeft)
-        self.tableWidget.setRowCount(len(self.plugin.projects))
+        self.tableWidget.setRowCount(len(settings.projects))
         self.buttonBox.accepted.connect(self.onAccepted)
         self.btnDelete.clicked.connect(self.onDelete)
         self.btnDelete.setText(None)
@@ -131,7 +143,7 @@ class MenuConfDialog(QDialog, FORM_CLASS):
         self.addMenu.addAction(add_option_http)
         self.btnAdd.setMenu(self.addMenu)
 
-        for idx, project in enumerate(self.plugin.projects):
+        for idx, project in enumerate(settings.projects):
             # edit project
             self.addEditButton(idx, guess_type_from_uri(project.get("file")))
 
@@ -185,27 +197,31 @@ class MenuConfDialog(QDialog, FORM_CLASS):
             le.textChanged.connect(self.onTextChanged)
 
         # -- Options
-        self.cbxLoadAll.setChecked(self.plugin.optionLoadAll)
+        self.cbxLoadAll.setChecked(settings.optionLoadAll)
         self.cbxLoadAll.setTristate(False)
 
-        self.cbxCreateGroup.setCheckState(self.plugin.optionCreateGroup)
+        self.cbxCreateGroup.setCheckState(settings.optionCreateGroup)
         self.cbxCreateGroup.setTristate(False)
 
-        self.cbxShowTooltip.setCheckState(self.plugin.optionTooltip)
+        self.cbxShowTooltip.setCheckState(settings.optionTooltip)
         self.cbxShowTooltip.setTristate(False)
 
-        self.cbxOpenLinks.setCheckState(self.plugin.optionOpenLinks)
+        self.cbxOpenLinks.setCheckState(settings.optionOpenLinks)
         self.cbxOpenLinks.setTristate(False)
 
-        self.optionSourceMD = self.plugin.optionSourceMD
-        self.setSourceMdText()
+        self.sourcesMdText = {
+            SOURCE_MD_OGC: self.tr("QGis Server metadata"),
+            SOURCE_MD_LAYER: self.tr("Layer Metadata"),
+            SOURCE_MD_NOTE: self.tr("Layer Notes"),
+        }
+        self.optionSourceMD = settings.optionSourceMD
 
         self.tableTunning()
 
     def setSourceMdText(self):
-        self.mdSource1.setText(self.plugin.sourcesMdText[self.optionSourceMD[0]])
-        self.mdSource2.setText(self.plugin.sourcesMdText[self.optionSourceMD[1]])
-        self.mdSource3.setText(self.plugin.sourcesMdText[self.optionSourceMD[2]])
+        self.mdSource1.setText(self.sourcesMdText[self.optionSourceMD[0]])
+        self.mdSource2.setText(self.sourcesMdText[self.optionSourceMD[1]])
+        self.mdSource3.setText(self.sourcesMdText[self.optionSourceMD[2]])
 
     def addEditButton(self, row, guess_type):
         """Add edit button, adapted to the type of resource
@@ -279,7 +295,7 @@ class MenuConfDialog(QDialog, FORM_CLASS):
         :param row: row indice
         :type row: int
         """
-        self.plugin.iface.messageBar().pushMessage(
+        iface.messageBar().pushMessage(
             "Message",
             self.tr(
                 "No HTTP Browser, simply paste your URL into the 'project' column."
@@ -322,13 +338,14 @@ class MenuConfDialog(QDialog, FORM_CLASS):
                     pass
 
     def onAccepted(self):
-        self.plugin.projects = []
-        # self.plugin.log("count : {}".format(self.tableWidget.rowCount()))
+        settings = self.plg_settings.get_plg_settings()
+        settings.projects = []
+        # self.log("count : {}".format(self.tableWidget.rowCount()))
         for row in range(self.tableWidget.rowCount()):
             file_widget = self.tableWidget.cellWidget(row, self.cols.uri)
-            # self.plugin.log("row : {}".format(row))
+            # self.log("row : {}".format(row))
             if file_widget and file_widget.text():
-                # self.plugin.log("row {} : {}".format(row, file_widget.text()))
+                # self.log("row {} : {}".format(row, file_widget.text()))
 
                 name_widget = self.tableWidget.cellWidget(row, self.cols.name)
                 name = name_widget.text()
@@ -339,18 +356,18 @@ class MenuConfDialog(QDialog, FORM_CLASS):
                 )
                 location = location_widget.itemData(location_widget.currentIndex())
 
-                self.plugin.projects.append(
+                settings.projects.append(
                     {"file": filename, "name": name, "location": location}
                 )
 
-        self.plugin.optionTooltip = self.cbxShowTooltip.isChecked()
-        self.plugin.optionLoadAll = self.cbxLoadAll.isChecked()
-        self.plugin.optionCreateGroup = self.cbxCreateGroup.isChecked()
-        self.plugin.optionOpenLinks = self.cbxOpenLinks.isChecked()
+        settings.optionTooltip = self.cbxShowTooltip.isChecked()
+        settings.optionLoadAll = self.cbxLoadAll.isChecked()
+        settings.optionCreateGroup = self.cbxCreateGroup.isChecked()
+        settings.optionOpenLinks = self.cbxOpenLinks.isChecked()
 
-        self.plugin.optionSourceMD = self.optionSourceMD
+        settings.optionSourceMD = self.optionSourceMD
 
-        self.plugin.store()
+        PlgOptionsManager().save_from_object(settings)
 
     def onAdd(self, qgs_type_storage: str = "file"):
         """Add a new line to the table.
@@ -401,6 +418,13 @@ class MenuConfDialog(QDialog, FORM_CLASS):
 
         # apply table styling
         self.tableTunning()
+
+    @staticmethod
+    def log(message, application=__title__, indent=0):
+        indent_chars = " .. " * indent
+        QgsMessageLog.logMessage(
+            f"{indent_chars}{message}", application, notifyUser=True
+        )
 
     def onDelete(self):
         """Remove selected lines from the table."""
@@ -469,7 +493,7 @@ class MenuConfDialog(QDialog, FORM_CLASS):
                 # selected row
                 self.tableWidget.setCurrentCell(r - 1, 1)
         except Exception as err:
-            self.plugin.log("Error moving up row {}. Trace: {}".format(r, err))
+            self.log("Error moving up row {}. Trace: {}".format(r, err))
 
     def onMoveDown(self):
         sr = self.tableWidget.selectedRanges()
@@ -530,7 +554,7 @@ class MenuConfDialog(QDialog, FORM_CLASS):
                 # selected row
                 self.tableWidget.setCurrentCell(r + 1, 1)
         except Exception as err:
-            self.plugin.log("Error moving down row {}. Trace: {}".format(r, err))
+            self.log("Error moving down row {}. Trace: {}".format(r, err))
 
     def onTextChanged(self, text: str):
         """Read the project using the URI of the project that changed into the table.
@@ -540,10 +564,10 @@ class MenuConfDialog(QDialog, FORM_CLASS):
         """
         file_widget = self.sender()
         try:
-            self.plugin.qgs_dom_manager.getQgsDoc(text)
+            self.qgs_dom_manager.getQgsDoc(text)
             file_widget.setStyleSheet("color: {};".format("black"))
         except Exception as err:
-            self.plugin.log("Error during project reading: {}".format(err))
+            self.log("Error during project reading: {}".format(err))
             file_widget.setStyleSheet("color: {};".format("red"))
 
     def on_mdSource2_released(self):
