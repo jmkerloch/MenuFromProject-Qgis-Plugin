@@ -125,7 +125,7 @@ def get_project_title(doc: QtXml.QDomDocument) -> str:
 
 
 @lru_cache()
-def read_from_file(uri: str) -> Tuple[QtXml.QDomDocument, str]:
+def read_from_file(uri: str) -> QtXml.QDomDocument:
     """Read a QGIS project (.qgs and .qgz) from a file path and returns d
 
     :param uri: path to the file
@@ -134,7 +134,7 @@ def read_from_file(uri: str) -> Tuple[QtXml.QDomDocument, str]:
     :return: a tuple with XML document and the filepath.
     :rtype: Tuple[QtXml.QDomDocument, str]
     """
-    doc, project_path = QtXml.QDomDocument(), None
+    doc = QtXml.QDomDocument()
     file = QFile(uri)
     if (
         file.exists()
@@ -142,7 +142,6 @@ def read_from_file(uri: str) -> Tuple[QtXml.QDomDocument, str]:
         and QFileInfo(file).suffix() == "qgs"
     ):
         doc.setContent(file)
-        project_path = uri
 
     elif file.exists() and (QFileInfo(file).suffix() == "qgz"):
         temporary_unzip = QTemporaryDir()
@@ -156,7 +155,7 @@ def read_from_file(uri: str) -> Tuple[QtXml.QDomDocument, str]:
         if xml.open(QIODevice.ReadOnly | QIODevice.Text):
             doc.setContent(xml)
 
-    return doc, project_path
+    return doc
 
 
 def read_from_database(uri: str, project_registry) -> Tuple[QtXml.QDomDocument, str]:
@@ -229,7 +228,7 @@ def read_from_http(uri: str, cache_folder: Path):
     project_download.startDownload()
     loop.exec_()
 
-    return read_from_file(str(cached_filepath))
+    return read_from_file(str(cached_filepath)), str(cached_filepath)
 
 
 class QgsDomManager:
@@ -263,7 +262,8 @@ class QgsDomManager:
             return self.docs[uri], uri
 
         if qgs_storage_type == "file":
-            doc, project_path = read_from_file(uri)
+            doc = read_from_file(uri)
+            project_path = uri
         elif qgs_storage_type == "database":
             doc, project_path = read_from_database(uri, self.project_registry)
         elif qgs_storage_type == "http":

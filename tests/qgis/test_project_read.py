@@ -36,30 +36,28 @@ class TestProjectMenuConfig(unittest.TestCase):
         """Read a sample project and check returned informations"""
 
         qgs_dom_manager = QgsDomManager()
-
+        filename = str(Path(__file__).parent / ".." / "projets" / "aeag-tiny.qgz")
         project = {
-            "file": str(Path(__file__).parent / ".." / "projets" / "aeag-tiny.qgz"),
+            "file": filename,
             "name": "test_import",
         }
 
         result = get_project_menu_config(
             project=project, qgs_dom_manager=qgs_dom_manager
         )
-        # Can't define filename because temp file is used
-        tmp_filename = result.filename
 
         expected = MenuProjectConfig(
             project_name="test_import",
-            filename=tmp_filename,
+            filename=filename,
             uri=project["file"],
             root_group=MenuGroupConfig(
                 name="",
-                filename=tmp_filename,
+                filename=filename,
                 childs=[
                     MenuLayerConfig(
                         name="Sites de mesure qualit\u00e9 (cours d'eau)",
                         layer_id="L8150cde67501427eade1e787479c2f70",
-                        filename=tmp_filename,
+                        filename=filename,
                         visible=True,
                         expanded=True,
                         embedded=False,
@@ -75,7 +73,7 @@ class TestProjectMenuConfig(unittest.TestCase):
                     MenuLayerConfig(
                         name="Cours d'eau",
                         layer_id="L35ecffe715c74f15bec52340aa3c9e3f",
-                        filename=tmp_filename,
+                        filename=filename,
                         visible=True,
                         expanded=False,
                         embedded=False,
@@ -91,7 +89,7 @@ class TestProjectMenuConfig(unittest.TestCase):
                     MenuLayerConfig(
                         name="Bassin Hydrographique",
                         layer_id="Lbd28399787e349488c2f7bb0298b370d",
-                        filename=tmp_filename,
+                        filename=filename,
                         visible=True,
                         expanded=False,
                         embedded=False,
