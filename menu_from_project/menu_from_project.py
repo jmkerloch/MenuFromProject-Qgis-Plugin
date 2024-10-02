@@ -19,14 +19,12 @@ email                : xavier.culos@eau-adour-garonne.fr
 """
 
 # Standard library
-from dataclasses import asdict
-import json
 import logging
 import os
-from pathlib import Path
 from typing import Dict, Optional, List, Tuple, Any
 
 # PyQGIS
+from menu_from_project.logic.cache_manager import CacheManager
 from menu_from_project.logic.layer_load import LayerLoad
 from menu_from_project.toolbelt.preferences import (
     SOURCE_MD_LAYER,
@@ -202,22 +200,14 @@ class MenuFromProject:
         nb_projects = len(settings.projects)
         for i, project in enumerate(settings.projects):
             task.setProgress(i * 100.0 / nb_projects)
-            # Get path to project menu config file
-            cache_path = Path(self.iface.userProfileManager().userProfile().folder())
-            cache_path = cache_path / ".cache" / "menu-layer" / project["name"]
-            cache_path.mkdir(parents=True, exist_ok=True)
-            json_cache_path = cache_path / "project_config.json"
-            if json_cache_path.exists():
-                with open(json_cache_path, "r", encoding="UTF-8") as f:
-                    data = json.load(f)
-                    result.append((project, MenuProjectConfig.from_json(data)))
-                continue
-
-            # Create project menu configuration from QgsProject
-            project_config = get_project_menu_config(project, self.qgs_dom_manager)
-
-            with open(json_cache_path, "w", encoding="UTF-8") as f:
-                json.dump(asdict(project_config), f, indent=4)
+            cache_manager = CacheManager(self.iface)
+            # Try to get project configuration from cache
+            project_config = cache_manager.get_project_menu_config(project)
+            if not project_config:
+                # Create project menu configuration from QgsProject
+                project_config = get_project_menu_config(project, self.qgs_dom_manager)
+                # Save in cache
+                cache_manager.save_project_menu_config(project, project_config)
 
             result.append((project, project_config))
         return result
