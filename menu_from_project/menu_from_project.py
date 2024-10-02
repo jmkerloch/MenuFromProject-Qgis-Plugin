@@ -33,6 +33,7 @@ from menu_from_project.toolbelt.preferences import (
     SOURCE_MD_OGC,
     PlgOptionsManager,
 )
+from menu_from_project.ui.browser import MenuLayerProvider
 from qgis.core import (
     QgsApplication,
     QgsMessageLog,
@@ -153,6 +154,9 @@ class MenuFromProject:
         self.action_project_configuration = None
         self.action_menu_help = None
 
+        self.registry = QgsApplication.instance().dataItemProviderRegistry()
+        self.provider = None
+
     @staticmethod
     def tr(message):
         return QCoreApplication.translate("MenuFromProject", message)
@@ -226,10 +230,15 @@ class MenuFromProject:
         """
         QgsApplication.setOverrideCursor(Qt.WaitCursor)
         previous = None
+        project_config_list = []
         for project, project_config in project_configs:
             # Add to QGIS instance
+            project_config_list.append(project_config)
             previous = self.add_project_config(project, project_config, previous)
-
+        if self.provider:
+            self.registry.removeProvider(self.provider)
+        self.provider = MenuLayerProvider(project_config_list)
+        self.registry.addProvider(self.provider)
         QgsApplication.restoreOverrideCursor()
 
     def add_project_config(
@@ -383,34 +392,7 @@ class MenuFromProject:
             icon_per_layer_type(layer.is_spatial, layer.layer_type, layer.geometry_type)
         )
         if settings.optionTooltip:
-            if settings.optionSourceMD == SOURCE_MD_OGC:
-                abstract = layer.abstract or layer.metadata_abstract
-                title = layer.title or layer.metadata_title
-            else:
-                abstract = layer.metadata_abstract or layer.abstract
-                title = layer.metadata_title or layer.title
-
-            abstract = ""
-            title = ""
-            for oSource in settings.optionSourceMD:
-                if oSource == SOURCE_MD_OGC:
-                    abstract = layer.metadata_abstract if abstract == "" else abstract
-                    title = title or layer.metadata_title
-
-                if oSource == SOURCE_MD_LAYER:
-                    abstract = layer.abstract if abstract == "" else abstract
-                    title = title or layer.title
-
-                if oSource == SOURCE_MD_NOTE:
-                    abstract = layer.layer_notes if abstract == "" else abstract
-
-            if (abstract != "") and (title == ""):
-                action.setToolTip("<p>{}</p>".format(abstract))
-            else:
-                if abstract != "" or title != "":
-                    action.setToolTip("<b>{}</b><br/>{}".format(title, abstract))
-                else:
-                    action.setToolTip("")
+            action.setToolTip(settings.tooltip_for_layer(layer))
 
         menu.addAction(action)
 
@@ -471,6 +453,9 @@ class MenuFromProject:
             )
 
         self.iface.initializationCompleted.disconnect(self.on_initializationCompleted)
+
+        if self.provider:
+            self.registry.removeProvider(self.provider)
 
     def open_projects_config(self):
         dlg = MenuConfDialog(self.iface.mainWindow())
