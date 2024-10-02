@@ -31,6 +31,7 @@ from menu_from_project.toolbelt.preferences import (
     SOURCE_MD_OGC,
     PlgOptionsManager,
 )
+from menu_from_project.ui.browser import MenuLayerProvider
 from qgis.core import (
     QgsApplication,
     QgsMessageLog,
@@ -148,6 +149,9 @@ class MenuFromProject:
         self.action_project_configuration = None
         self.action_menu_help = None
 
+        self.registry = QgsApplication.instance().dataItemProviderRegistry()
+        self.provider = None
+
     @staticmethod
     def tr(message):
         return QCoreApplication.translate("MenuFromProject", message)
@@ -177,17 +181,27 @@ class MenuFromProject:
         QgsApplication.setOverrideCursor(Qt.WaitCursor)
         settings = self.plg_settings.get_plg_settings()
         previous = None
+        project_config_list = []
         for project in settings.projects:
             uri = project["file"]
             try:
                 project["valid"] = True
-                previous = self.load_and_add_project_config(project, previous)
+
+                # Create project menu configuration from QgsProject
+                project_config = get_project_menu_config(project, self.qgs_dom_manager)
+                project_config_list.append(project_config)
+
+                # Add to QGIS instance
+                previous = self.add_project_config(project, project_config, previous)
             except Exception as e:
                 project["valid"] = False
                 self.log("Menu from layer: Invalid {}".format(uri))
                 for m in e.args:
                     self.log(m)
-
+        if self.provider:
+            self.registry.removeProvider(self.provider)
+        self.provider = MenuLayerProvider(self.iface, project_config_list)
+        self.registry.addProvider(self.provider)
         QgsApplication.restoreOverrideCursor()
 
     def load_and_add_project_config(

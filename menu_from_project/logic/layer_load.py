@@ -354,7 +354,8 @@ class LayerLoad:
 
         try:
             if (
-                isinstance(menu.parentWidget(), (QMenu, QWidget))
+                menu
+                and isinstance(menu.parentWidget(), (QMenu, QWidget))
                 and settings.optionCreateGroup
             ):
                 groupName = menu.title().replace("&", "")
