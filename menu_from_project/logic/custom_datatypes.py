@@ -18,5 +18,6 @@ TABLE_COLUMNS_ORDER = namedtuple(
         "uri",
         "refresh_days",
         "enable_cache",
+        "cache_validation_file",
     ],
 )

@@ -18,7 +18,7 @@ from menu_from_project.toolbelt.preferences import (
     PlgOptionsManager,
 )
 from qgis.core import QgsApplication, Qgis, QgsMessageLog
-from qgis.gui import QgsProviderGuiRegistry, QgsSpinBox
+from qgis.gui import QgsProviderGuiRegistry, QgsSpinBox, QgsFileWidget
 from qgis.PyQt import uic
 from qgis.PyQt.QtCore import QRect, Qt
 from qgis.PyQt.QtGui import QIcon, QPixmap
@@ -41,7 +41,6 @@ from qgis.utils import iface
 from menu_from_project.__about__ import DIR_PLUGIN_ROOT, __title__, __version__
 from menu_from_project.logic.custom_datatypes import TABLE_COLUMNS_ORDER
 from menu_from_project.logic.tools import (
-    guess_type_from_uri,
     icon_per_storage_type,
 )
 
@@ -84,6 +83,7 @@ class MenuConfDialog(QDialog, FORM_CLASS):
             uri=4,
             refresh_days=5,
             enable_cache=6,
+            cache_validation_file=7,
         )
 
         # menu locations
@@ -213,6 +213,11 @@ class MenuConfDialog(QDialog, FORM_CLASS):
         # Cache enable
         self.tableWidget.cellWidget(idx, self.cols.enable_cache).setChecked(
             project.cache_config.enable
+        )
+
+        # Cache validation file
+        self.tableWidget.cellWidget(idx, self.cols.cache_validation_file).setFilePath(
+            project.cache_config.cache_validation_uri
         )
 
     def setSourceMdText(self):
@@ -355,6 +360,9 @@ class MenuConfDialog(QDialog, FORM_CLASS):
                 row, self.cols.refresh_days
             ).value(),
             enable=self.tableWidget.cellWidget(row, self.cols.enable_cache).isChecked(),
+            cache_validation_uri=self.tableWidget.cellWidget(
+                row, self.cols.cache_validation_file
+            ).filePath(),
         )
 
         type_storage = self.tableWidget.item(row, self.cols.uri).data(Qt.UserRole)
@@ -450,6 +458,18 @@ class MenuConfDialog(QDialog, FORM_CLASS):
         checkbox = QCheckBox()
         checkbox.setChecked(True)
         self.tableWidget.setCellWidget(row, self.cols.enable_cache, checkbox)
+
+        # Cache validation file
+        cache_validation_file_item = QTableWidgetItem()
+        cache_validation_file_item.setFlags(Qt.ItemIsSelectable | Qt.ItemIsEnabled)
+        self.tableWidget.setItem(
+            row, self.cols.cache_validation_file, cache_validation_file_item
+        )
+        qgs_file_widget = QgsFileWidget()
+        qgs_file_widget.setFilter("*.json")
+        self.tableWidget.setCellWidget(
+            row, self.cols.cache_validation_file, qgs_file_widget
+        )
 
     def onAdd(self, qgs_type_storage: str = "file"):
         """Add a new line to the table.
