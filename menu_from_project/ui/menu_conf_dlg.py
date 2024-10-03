@@ -9,7 +9,7 @@ import logging
 from functools import partial
 
 # PyQGIS
-from menu_from_project.datamodel.project import Project
+from menu_from_project.datamodel.project import Project, ProjectCacheConfig
 from menu_from_project.logic.qgs_manager import QgsDomManager
 from menu_from_project.toolbelt.preferences import (
     SOURCE_MD_LAYER,
@@ -18,7 +18,7 @@ from menu_from_project.toolbelt.preferences import (
     PlgOptionsManager,
 )
 from qgis.core import QgsApplication, Qgis, QgsMessageLog
-from qgis.gui import QgsProviderGuiRegistry
+from qgis.gui import QgsProviderGuiRegistry, QgsSpinBox
 from qgis.PyQt import uic
 from qgis.PyQt.QtCore import QRect, Qt
 from qgis.PyQt.QtGui import QIcon, QPixmap
@@ -33,6 +33,7 @@ from qgis.PyQt.QtWidgets import (
     QMenu,
     QTableWidgetItem,
     QToolButton,
+    QCheckBox,
 )
 from qgis.utils import iface
 
@@ -76,7 +77,13 @@ class MenuConfDialog(QDialog, FORM_CLASS):
 
         # column order reference
         self.cols = TABLE_COLUMNS_ORDER(
-            edit=0, name=1, type_menu_location=3, type_storage=2, uri=4
+            edit=0,
+            name=1,
+            type_menu_location=3,
+            type_storage=2,
+            uri=4,
+            refresh_days=5,
+            enable_cache=6,
         )
 
         # menu locations
@@ -196,6 +203,25 @@ class MenuConfDialog(QDialog, FORM_CLASS):
 
             self.tableWidget.setCellWidget(idx, self.cols.uri, le)
             le.textChanged.connect(self.onTextChanged)
+
+            # refresh day
+            refresh_day_item = QTableWidgetItem()
+            refresh_day_item.setFlags(Qt.ItemIsSelectable | Qt.ItemIsEnabled)
+            self.tableWidget.setItem(idx, self.cols.refresh_days, refresh_day_item)
+            spinbox = QgsSpinBox()
+            spinbox.setClearValue(-1, self.tr("None"))
+            spinbox.setSuffix(self.tr(" days"))
+            if project.cache_config.refresh_days_period:
+                spinbox.setValue(project.cache_config.refresh_days_period)
+            self.tableWidget.setCellWidget(idx, self.cols.refresh_days, spinbox)
+
+            # Cache enable
+            enable_cache_item = QTableWidgetItem()
+            enable_cache_item.setFlags(Qt.ItemIsSelectable | Qt.ItemIsEnabled)
+            self.tableWidget.setItem(idx, self.cols.enable_cache, enable_cache_item)
+            checkbox = QCheckBox()
+            checkbox.setChecked(project.cache_config.enable)
+            self.tableWidget.setCellWidget(idx, self.cols.enable_cache, checkbox)
 
         # -- Options
         self.cbxLoadAll.setChecked(settings.optionLoadAll)
@@ -357,6 +383,15 @@ class MenuConfDialog(QDialog, FORM_CLASS):
                 )
                 location = location_widget.itemData(location_widget.currentIndex())
 
+                cache_config = ProjectCacheConfig(
+                    refresh_days_period=self.tableWidget.cellWidget(
+                        row, self.cols.refresh_days
+                    ).value(),
+                    enable=self.tableWidget.cellWidget(
+                        row, self.cols.enable_cache
+                    ).isChecked(),
+                )
+
                 settings.projects.append(
                     Project(
                         file=filename,
@@ -364,6 +399,7 @@ class MenuConfDialog(QDialog, FORM_CLASS):
                         location=location,
                         valid=False,
                         type_storage=guess_type_from_uri(filename),
+                        cache_config=cache_config,
                     )
                 )
 
@@ -422,6 +458,22 @@ class MenuConfDialog(QDialog, FORM_CLASS):
         filepath_lineedit = QLineEdit()
         filepath_lineedit.textChanged.connect(self.onTextChanged)
         self.tableWidget.setCellWidget(row, self.cols.uri, filepath_lineedit)
+
+        # refresh day
+        refresh_day_item = QTableWidgetItem()
+        refresh_day_item.setFlags(Qt.ItemIsSelectable | Qt.ItemIsEnabled)
+        self.tableWidget.setItem(row, self.cols.refresh_days, refresh_day_item)
+        spinbox = QgsSpinBox()
+        spinbox.setClearValue(-1, self.tr("None"))
+        spinbox.setSuffix(self.tr(" days"))
+        self.tableWidget.setCellWidget(row, self.cols.refresh_days, spinbox)
+
+        # Cache enable
+        enable_cache_item = QTableWidgetItem()
+        enable_cache_item.setFlags(Qt.ItemIsSelectable | Qt.ItemIsEnabled)
+        self.tableWidget.setItem(row, self.cols.enable_cache, enable_cache_item)
+        checkbox = QCheckBox()
+        self.tableWidget.setCellWidget(row, self.cols.enable_cache, checkbox)
 
         # apply table styling
         self.tableTunning()

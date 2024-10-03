@@ -483,6 +483,7 @@ class MenuFromProject:
         if result != 0:
             # clear web projects cache
             try:
+                self.qgs_dom_manager.cache_clear()
                 read_from_http.cache_clear()
                 read_from_file.cache_clear()
             except Exception:

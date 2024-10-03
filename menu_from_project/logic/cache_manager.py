@@ -48,7 +48,7 @@ class CacheManager:
         """
         cache_config = project.cache_config
         if not cache_config.enable:
-            self.log(self.tr("Cache disabled for project {project.name}"))
+            self.log(self.tr(f"Cache disabled for project {project.name}"))
             return False
 
         # Check if a cache info is available

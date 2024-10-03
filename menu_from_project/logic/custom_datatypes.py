@@ -9,5 +9,14 @@ REGISTERED_PROJECT = namedtuple(
 )
 
 TABLE_COLUMNS_ORDER = namedtuple(
-    "ColumnsIndex", ["edit", "name", "type_menu_location", "type_storage", "uri"]
+    "ColumnsIndex",
+    [
+        "edit",
+        "name",
+        "type_menu_location",
+        "type_storage",
+        "uri",
+        "refresh_days",
+        "enable_cache",
+    ],
 )

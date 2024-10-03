@@ -9,7 +9,7 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>660</width>
+    <width>828</width>
     <height>310</height>
    </rect>
   </property>
@@ -98,7 +98,7 @@
         <number>1</number>
        </property>
        <property name="columnCount">
-        <number>5</number>
+        <number>7</number>
        </property>
        <attribute name="horizontalHeaderVisible">
         <bool>true</bool>
@@ -145,6 +145,16 @@
        <column>
         <property name="text">
          <string>QGIS Project</string>
+        </property>
+       </column>
+       <column>
+        <property name="text">
+         <string>Refresh interval</string>
+        </property>
+       </column>
+       <column>
+        <property name="text">
+         <string>Enable cache</string>
         </property>
        </column>
       </widget>

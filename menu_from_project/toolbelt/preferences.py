@@ -13,7 +13,7 @@ from qgis.core import QgsSettings
 
 # package
 from menu_from_project.__about__ import __title__, __version__
-from menu_from_project.datamodel.project import Project
+from menu_from_project.datamodel.project import Project, ProjectCacheConfig
 from menu_from_project.logic.tools import guess_type_from_uri
 
 # ############################################################################
@@ -131,6 +131,14 @@ class PlgOptionsManager:
                         type_storage = s.value(
                             "type_storage", guess_type_from_uri(file)
                         )
+
+                        s.beginGroup("cache_config")
+                        cache_config = ProjectCacheConfig(
+                            refresh_days_period=s.value("refresh_days_period", None),
+                            enable=s.value("enable", True),
+                        )
+                        s.endGroup()
+
                         if file != "":
                             options.projects.append(
                                 Project(
@@ -138,6 +146,7 @@ class PlgOptionsManager:
                                     name=name,
                                     location=location,
                                     type_storage=type_storage,
+                                    cache_config=cache_config,
                                 )
                             )
                 finally:
@@ -176,6 +185,13 @@ class PlgOptionsManager:
                     s.setValue("name", project.name)
                     s.setValue("location", project.location)
                     s.setValue("type_storage", guess_type_from_uri(project.file))
+
+                    s.beginGroup("cache_config")
+                    s.setValue(
+                        "refresh_days_period", project.cache_config.refresh_days_period
+                    )
+                    s.setValue("enable", project.cache_config.enable)
+                    s.endGroup()
             finally:
                 s.endArray()
         finally:
