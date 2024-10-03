@@ -1,7 +1,6 @@
 # standard
-from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Dict, Optional, Tuple
 
 # PyQGIS
 from qgis.PyQt import QtXml
@@ -21,46 +20,11 @@ from menu_from_project.logic.qgs_manager import (
     create_map_layer_dict,
     is_absolute,
 )
-
-
-@dataclass
-class MenuLayerConfig:
-    """Class to store configuration for layer menu creation"""
-
-    name: str
-    layer_id: str
-    filename: str
-    visible: bool
-    expanded: bool
-    embedded: str
-    is_spatial: bool
-    layer_type: Optional[QgsMapLayerType]
-    metadata_abstract: str
-    metadata_title: str
-    layer_notes: str
-    abstract: str
-    title: str
-    geometry_type: Optional[QgsWkbTypes.GeometryType] = None
-
-
-@dataclass
-class MenuGroupConfig:
-    """Class to store configuration for group menu creation"""
-
-    name: str
-    filename: str
-    childs: List[Any]  # List of Union[MenuLayerConfig,MenuGroupConfig]
-    embedded: bool
-
-
-@dataclass
-class MenuProjectConfig:
-    """Class to store configuration for project menu creation"""
-
-    project_name: str
-    filename: str
-    uri: str
-    root_group: MenuGroupConfig
+from menu_from_project.datamodel.project_config import (
+    MenuProjectConfig,
+    MenuGroupConfig,
+    MenuLayerConfig,
+)
 
 
 def get_embedded_project_from_layer_tree(
@@ -76,26 +40,30 @@ def get_embedded_project_from_layer_tree(
     :rtype: str
     """
     element = node.toElement()
-    eFileNd = getFirstChildByAttrValue(
-        element, "property", "key", "embedded_project"
-    ) or getFirstChildByAttrValue(element, "Option", "name", "embedded_project")
-    filename = ""
-    if eFileNd:
-        # get project file name
-        embeddedFile = eFileNd.toElement().attribute("value")
-        if not absolute_project and (embeddedFile.find(".") == 0):
-            filename = QFileInfo(init_filename).path() + "/" + embeddedFile
-        else:
-            filename = QFileInfo(embeddedFile).absoluteFilePath()
-    else:
-        layer_id = element.attribute("id")
-
-        QgsMessageLog.logMessage(
-            f"Menu from layer: Embeded project not found for {layer_id}",
-            __title__,
-            notifyUser=True,
+    customproperties_nd = element.elementsByTagName("customproperties")
+    if customproperties_nd.size() > 0:
+        eFileNd = getFirstChildByAttrValue(
+            customproperties_nd.at(0), "property", "key", "embedded_project"
+        ) or getFirstChildByAttrValue(
+            customproperties_nd.at(0), "Option", "name", "embedded_project"
         )
         filename = ""
+        if eFileNd:
+            # get project file name
+            embeddedFile = eFileNd.toElement().attribute("value")
+            if not absolute_project and (embeddedFile.find(".") == 0):
+                filename = QFileInfo(init_filename).path() + "/" + embeddedFile
+            else:
+                filename = QFileInfo(embeddedFile).absoluteFilePath()
+        else:
+            layer_id = element.attribute("id")
+
+            QgsMessageLog.logMessage(
+                f"Menu from layer: Embeded project not found for {layer_id}",
+                __title__,
+                notifyUser=True,
+            )
+            filename = ""
     if filename == "" and not node.parentNode().isNull():
         return get_embedded_project_from_layer_tree(
             node.parentNode(),
@@ -119,18 +87,26 @@ def read_embedded_properties(
     :rtype: Tuple[bool, str]
     """
     element = node.toElement()
-    embedNd = getFirstChildByAttrValue(
-        element, "property", "key", "embedded"
-    ) or getFirstChildByAttrValue(element, "Option", "name", "embedded")
 
-    if embedNd and embedNd.toElement().attribute("value") == "1":
-        embedded = True
-        filename = get_embedded_project_from_layer_tree(
-            node=node, init_filename=init_filename, absolute_project=absolute_project
+    embedded = False
+    filename = init_filename
+
+    customproperties_nd = element.elementsByTagName("customproperties")
+    if customproperties_nd.size() > 0:
+        embedNd = getFirstChildByAttrValue(
+            customproperties_nd.at(0), "property", "key", "embedded"
+        ) or getFirstChildByAttrValue(
+            customproperties_nd.at(0), "Option", "name", "embedded"
         )
-    else:
-        embedded = False
-        filename = init_filename
+
+        if embedNd and embedNd.toElement().attribute("value") == "1":
+            embedded = True
+            filename = get_embedded_project_from_layer_tree(
+                node=node,
+                init_filename=init_filename,
+                absolute_project=absolute_project,
+            )
+
     return embedded, filename
 
 
@@ -381,6 +357,7 @@ def get_project_menu_config(
 
     # Get path to QgsProject file, local / downloaded / from postgres database
     uri = project["file"]
+    qgs_dom_manager.set_project(project)
     doc, filename = qgs_dom_manager.getQgsDoc(uri)
 
     # Define project name
@@ -397,7 +374,7 @@ def get_project_menu_config(
             # Create dict of maplayer nodes
             maplayer_dict = create_map_layer_dict(doc)
             # Parse node for group and layers
-            return MenuProjectConfig(
+            menu_project_config = MenuProjectConfig(
                 project_name=name,
                 filename=filename,
                 uri=uri,
@@ -409,4 +386,7 @@ def get_project_menu_config(
                     absolute_project=is_absolute(doc),
                 ),
             )
+
+            qgs_dom_manager.set_project(None)
+            return menu_project_config
     return None

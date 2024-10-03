@@ -24,6 +24,7 @@ import os
 from typing import Dict, Optional, List, Tuple, Any
 
 # PyQGIS
+from menu_from_project.logic.cache_manager import CacheManager
 from menu_from_project.logic.layer_load import LayerLoad
 from menu_from_project.toolbelt.preferences import (
     SOURCE_MD_LAYER,
@@ -54,12 +55,13 @@ from menu_from_project.logic.tools import (
     icon_per_layer_type,
 )
 from menu_from_project.ui.menu_conf_dlg import MenuConfDialog  # noqa: F4 I001
-from menu_from_project.logic.project_read import (
+from menu_from_project.datamodel.project_config import (
     MenuGroupConfig,
     MenuLayerConfig,
     MenuProjectConfig,
-    get_project_menu_config,
 )
+
+from menu_from_project.logic.project_read import get_project_menu_config
 
 # ############################################################################
 # ########## Globals ###############
@@ -199,9 +201,14 @@ class MenuFromProject:
         nb_projects = len(settings.projects)
         for i, project in enumerate(settings.projects):
             task.setProgress(i * 100.0 / nb_projects)
-
-            # Create project menu configuration from QgsProject
-            project_config = get_project_menu_config(project, self.qgs_dom_manager)
+            cache_manager = CacheManager(self.iface)
+            # Try to get project configuration from cache
+            project_config = cache_manager.get_project_menu_config(project)
+            if not project_config:
+                # Create project menu configuration from QgsProject
+                project_config = get_project_menu_config(project, self.qgs_dom_manager)
+                # Save in cache
+                cache_manager.save_project_menu_config(project, project_config)
 
             result.append((project, project_config))
         return result
