@@ -2,9 +2,10 @@
 from dataclasses import asdict
 import json
 from pathlib import Path
-from typing import Dict, Optional
+from typing import Optional
 
 # project
+from menu_from_project.datamodel.project import Project
 from menu_from_project.datamodel.project_config import MenuProjectConfig
 
 
@@ -18,13 +19,11 @@ class CacheManager:
     def __init__(self, iface) -> None:
         self.iface = iface
 
-    def get_project_menu_config(
-        self, project: Dict[str, str]
-    ) -> Optional[MenuProjectConfig]:
+    def get_project_menu_config(self, project: Project) -> Optional[MenuProjectConfig]:
         """Get menu project configuration from cache for a project
 
         :param project: dict of information about the project
-        :type project: Dict[str, str]
+        :type project: Project
         :return: menu project configuration from cache, None if no cache available
         :rtype: Optional[MenuProjectConfig]
         """
@@ -37,39 +36,38 @@ class CacheManager:
         return None
 
     def save_project_menu_config(
-        self, project: Dict[str, str], project_config: MenuProjectConfig
+        self, project: Project, project_config: MenuProjectConfig
     ) -> None:
         """Save menu project configuration in cache
 
         :param project: dict of information about the project
-        :type project: Dict[str, str]
+        :type project: Project
         :param project_config: menu project configuration
         :type project_config: MenuProjectConfig
         """
         cache_path = self.get_project_cache_dir(project)
         json_cache_path = cache_path / "project_config.json"
-
         with open(json_cache_path, "w", encoding="UTF-8") as f:
             json.dump(asdict(project_config), f, indent=4)
 
-    def get_project_cache_dir(self, project: Dict[str, str]) -> Path:
+    def get_project_cache_dir(self, project: Project) -> Path:
         """Get local project cache directory
 
         :param project: dict of information about the project
-        :type project: Dict[str, str]
+        :type project: Project
         :return: path to project cache directory
         :rtype: Path
         """
         cache_path = Path(self.iface.userProfileManager().userProfile().folder())
-        cache_path = cache_path / ".cache" / "menu-layer" / project["name"]
+        cache_path = cache_path / ".cache" / "menu-layer" / project.name
         cache_path.mkdir(parents=True, exist_ok=True)
         return cache_path
 
-    def get_project_download_dir(self, project: Dict[str, str]) -> Path:
+    def get_project_download_dir(self, project: Project) -> Path:
         """Get local project cache download directory
 
         :param project: dict of information about the project
-        :type project: Dict[str, str]
+        :type project: Project
         :return: path to project cache directory
         :rtype: Path
         """

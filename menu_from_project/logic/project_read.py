@@ -13,6 +13,7 @@ from qgis.core import (
 
 # project
 from menu_from_project.__about__ import __title__
+from menu_from_project.datamodel.project import Project
 from menu_from_project.logic.xml_utils import getFirstChildByAttrValue
 from menu_from_project.logic.qgs_manager import (
     QgsDomManager,
@@ -342,13 +343,13 @@ def get_group_menu_config(
 
 
 def get_project_menu_config(
-    project: Dict[str, str],
+    project: Project,
     qgs_dom_manager: QgsDomManager,
 ) -> Optional[MenuProjectConfig]:
     """Get project menu configuration for a project
 
     :param project: dict of information about the project
-    :type project: Dict[str, str]
+    :type project: Project
     :param qgs_dom_manager: manager to get qgs doc for project
     :type qgs_dom_manager: QgsDomManager
     :return: Optional menu project configuration
@@ -356,12 +357,12 @@ def get_project_menu_config(
     """
 
     # Get path to QgsProject file, local / downloaded / from postgres database
-    uri = project["file"]
+    uri = project.file
     qgs_dom_manager.set_project(project)
     doc, filename = qgs_dom_manager.getQgsDoc(uri)
 
     # Define project name
-    name = project["name"]
+    name = project.name
     if name == "":
         name = get_project_title(doc)
     if name == "":

@@ -13,6 +13,7 @@ from qgis.core import QgsSettings
 
 # package
 from menu_from_project.__about__ import __title__, __version__
+from menu_from_project.datamodel.project import Project
 from menu_from_project.logic.tools import guess_type_from_uri
 
 # ############################################################################
@@ -33,7 +34,7 @@ class PlgSettingsStructure:
     version: str = __version__
 
     # Projects
-    projects: List[dict[str, str]] = field(default_factory=lambda: [])
+    projects: List[Project] = field(default_factory=lambda: [])
 
     # Menu option
     optionTooltip: bool = False
@@ -132,12 +133,12 @@ class PlgOptionsManager:
                         )
                         if file != "":
                             options.projects.append(
-                                {
-                                    "file": file,
-                                    "name": name,
-                                    "location": location,
-                                    "type_storage": type_storage,
-                                }
+                                Project(
+                                    file=file,
+                                    name=name,
+                                    location=location,
+                                    type_storage=type_storage,
+                                )
                             )
                 finally:
                     s.endArray()
@@ -171,16 +172,10 @@ class PlgOptionsManager:
             try:
                 for i, project in enumerate(plugin_settings_obj.projects):
                     s.setArrayIndex(i)
-                    s.setValue("file", project["file"])
-                    s.setValue("name", project["name"])
-                    s.setValue("location", project["location"])
-                    s.setValue(
-                        "type_storage",
-                        project.get(
-                            "type_storage",
-                            guess_type_from_uri(project.get("file")),
-                        ),
-                    )
+                    s.setValue("file", project.file)
+                    s.setValue("name", project.name)
+                    s.setValue("location", project.location)
+                    s.setValue("type_storage", guess_type_from_uri(project.file))
             finally:
                 s.endArray()
         finally:

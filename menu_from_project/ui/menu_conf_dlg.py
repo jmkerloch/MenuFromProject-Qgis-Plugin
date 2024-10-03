@@ -9,6 +9,7 @@ import logging
 from functools import partial
 
 # PyQGIS
+from menu_from_project.datamodel.project import Project
 from menu_from_project.logic.qgs_manager import QgsDomManager
 from menu_from_project.toolbelt.preferences import (
     SOURCE_MD_LAYER,
@@ -145,14 +146,14 @@ class MenuConfDialog(QDialog, FORM_CLASS):
 
         for idx, project in enumerate(settings.projects):
             # edit project
-            self.addEditButton(idx, guess_type_from_uri(project.get("file")))
+            self.addEditButton(idx, guess_type_from_uri(project.file))
 
             # project name
-            itemName = QTableWidgetItem(project.get("name"))
+            itemName = QTableWidgetItem(project.name)
             itemName.setFlags(Qt.ItemIsSelectable | Qt.ItemIsEnabled)
             self.tableWidget.setItem(idx, self.cols.name, itemName)
             le = QLineEdit()
-            le.setText(project.get("name"))
+            le.setText(project.name)
             le.setPlaceholderText(self.tr("Use project title"))
             self.tableWidget.setCellWidget(idx, self.cols.name, le)
 
@@ -160,7 +161,7 @@ class MenuConfDialog(QDialog, FORM_CLASS):
             self.tableWidget.setCellWidget(
                 idx,
                 self.cols.type_storage,
-                self.mk_prj_storage_icon(guess_type_from_uri(project.get("file"))),
+                self.mk_prj_storage_icon(guess_type_from_uri(project.file)),
             )
 
             # project menu location
@@ -171,7 +172,7 @@ class MenuConfDialog(QDialog, FORM_CLASS):
 
             try:
                 location_combo.setCurrentIndex(
-                    self.LOCATIONS[project["location"]]["index"]
+                    self.LOCATIONS[project.location]["index"]
                 )
             except Exception:
                 location_combo.setCurrentIndex(0)
@@ -180,15 +181,15 @@ class MenuConfDialog(QDialog, FORM_CLASS):
             )
 
             # project path (guess type stored into data)
-            itemFile = QTableWidgetItem(project.get("file"))
-            itemFile.setData(Qt.UserRole, guess_type_from_uri(project.get("file")))
+            itemFile = QTableWidgetItem(project.file)
+            itemFile.setData(Qt.UserRole, guess_type_from_uri(project.file))
             itemFile.setFlags(Qt.ItemIsSelectable | Qt.ItemIsEnabled)
             self.tableWidget.setItem(idx, self.cols.uri, itemFile)
             le = QLineEdit()
-            le.setText(project.get("file"))
+            le.setText(project.file)
             try:
                 le.setStyleSheet(
-                    "color: {};".format("black" if project["valid"] else "red")
+                    "color: {};".format("black" if project.valid else "red")
                 )
             except Exception:
                 le.setStyleSheet("color: {};".format("black"))
@@ -357,7 +358,13 @@ class MenuConfDialog(QDialog, FORM_CLASS):
                 location = location_widget.itemData(location_widget.currentIndex())
 
                 settings.projects.append(
-                    {"file": filename, "name": name, "location": location}
+                    Project(
+                        file=filename,
+                        name=name,
+                        location=location,
+                        valid=False,
+                        type_storage=guess_type_from_uri(filename),
+                    )
                 )
 
         settings.optionTooltip = self.cbxShowTooltip.isChecked()

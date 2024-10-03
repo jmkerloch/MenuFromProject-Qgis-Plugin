@@ -24,6 +24,7 @@ import os
 from typing import Dict, Optional, List, Tuple, Any
 
 # PyQGIS
+from menu_from_project.datamodel.project import Project
 from menu_from_project.logic.cache_manager import CacheManager
 from menu_from_project.logic.layer_load import LayerLoad
 from menu_from_project.toolbelt.preferences import (
@@ -233,7 +234,7 @@ class MenuFromProject:
 
     def add_project_config(
         self,
-        project: Dict[str, str],
+        project: Project,
         project_config: MenuProjectConfig,
         previous: Optional[QMenu],
     ) -> QMenu:
@@ -242,7 +243,7 @@ class MenuFromProject:
         :param menu_name: Name of the menu to create
         :type menu_name: str
         :param project: dict of information about the project
-        :type project: Dict[str, str]
+        :type project: Project
         :param project_config: project menu configuration
         :type project_config: MenuProjectConfig
         :param previous: previous created menu
@@ -258,20 +259,20 @@ class MenuFromProject:
         return project_menu
 
     def create_project_menu(
-        self, menu_name: str, project: Dict[str, str], previous: Optional[QMenu]
+        self, menu_name: str, project: Project, previous: Optional[QMenu]
     ) -> QMenu:
         """Create project menu and add it to QGIS instance
 
         :param menu_name: Name of the menu to create
         :type menu_name: str
         :param project: dict of information about the project
-        :type project: Dict[str, str]
+        :type project: Project
         :param previous: previous created menu
         :type previous: Optional[QMenu]
         :return: created menu
         :rtype: QMenu
         """
-        location = project["location"]
+        location = project.location
         if location == "merge" and previous:
             project_menu = previous
             project_menu.addSeparator()
