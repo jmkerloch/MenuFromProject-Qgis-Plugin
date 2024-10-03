@@ -152,76 +152,7 @@ class MenuConfDialog(QDialog, FORM_CLASS):
         self.btnAdd.setMenu(self.addMenu)
 
         for idx, project in enumerate(settings.projects):
-            # edit project
-            self.addEditButton(idx, guess_type_from_uri(project.file))
-
-            # project name
-            itemName = QTableWidgetItem(project.name)
-            itemName.setFlags(Qt.ItemIsSelectable | Qt.ItemIsEnabled)
-            self.tableWidget.setItem(idx, self.cols.name, itemName)
-            le = QLineEdit()
-            le.setText(project.name)
-            le.setPlaceholderText(self.tr("Use project title"))
-            self.tableWidget.setCellWidget(idx, self.cols.name, le)
-
-            # project storage type
-            self.tableWidget.setCellWidget(
-                idx,
-                self.cols.type_storage,
-                self.mk_prj_storage_icon(guess_type_from_uri(project.file)),
-            )
-
-            # project menu location
-            location_combo = QComboBox()
-            for pk in self.LOCATIONS:
-                if not (pk == "merge" and idx == 0):
-                    location_combo.addItem(self.LOCATIONS[pk]["label"], pk)
-
-            try:
-                location_combo.setCurrentIndex(
-                    self.LOCATIONS[project.location]["index"]
-                )
-            except Exception:
-                location_combo.setCurrentIndex(0)
-            self.tableWidget.setCellWidget(
-                idx, self.cols.type_menu_location, location_combo
-            )
-
-            # project path (guess type stored into data)
-            itemFile = QTableWidgetItem(project.file)
-            itemFile.setData(Qt.UserRole, guess_type_from_uri(project.file))
-            itemFile.setFlags(Qt.ItemIsSelectable | Qt.ItemIsEnabled)
-            self.tableWidget.setItem(idx, self.cols.uri, itemFile)
-            le = QLineEdit()
-            le.setText(project.file)
-            try:
-                le.setStyleSheet(
-                    "color: {};".format("black" if project.valid else "red")
-                )
-            except Exception:
-                le.setStyleSheet("color: {};".format("black"))
-
-            self.tableWidget.setCellWidget(idx, self.cols.uri, le)
-            le.textChanged.connect(self.onTextChanged)
-
-            # refresh day
-            refresh_day_item = QTableWidgetItem()
-            refresh_day_item.setFlags(Qt.ItemIsSelectable | Qt.ItemIsEnabled)
-            self.tableWidget.setItem(idx, self.cols.refresh_days, refresh_day_item)
-            spinbox = QgsSpinBox()
-            spinbox.setClearValue(-1, self.tr("None"))
-            spinbox.setSuffix(self.tr(" days"))
-            if project.cache_config.refresh_days_period:
-                spinbox.setValue(project.cache_config.refresh_days_period)
-            self.tableWidget.setCellWidget(idx, self.cols.refresh_days, spinbox)
-
-            # Cache enable
-            enable_cache_item = QTableWidgetItem()
-            enable_cache_item.setFlags(Qt.ItemIsSelectable | Qt.ItemIsEnabled)
-            self.tableWidget.setItem(idx, self.cols.enable_cache, enable_cache_item)
-            checkbox = QCheckBox()
-            checkbox.setChecked(project.cache_config.enable)
-            self.tableWidget.setCellWidget(idx, self.cols.enable_cache, checkbox)
+            self._set_table_widget_row_project(idx, project)
 
         # -- Options
         self.cbxLoadAll.setChecked(settings.optionLoadAll)
@@ -244,6 +175,45 @@ class MenuConfDialog(QDialog, FORM_CLASS):
         self.optionSourceMD = settings.optionSourceMD
 
         self.tableTunning()
+
+    def _set_table_widget_row_project(self, idx: int, project: Project) -> None:
+        """Define table widget content for a specific row for a project
+
+        :param idx: table widget row index
+        :type idx: int
+        :param project: project
+        :type project: Project
+        """
+        self._set_table_widget_row_item(idx, project.type_storage)
+
+        # project name
+        self.tableWidget.cellWidget(idx, self.cols.name).setText(project.name)
+
+        # project menu location
+        location_combo = self.tableWidget.cellWidget(idx, self.cols.type_menu_location)
+        try:
+            location_combo.setCurrentIndex(self.LOCATIONS[project.location]["index"])
+        except Exception:
+            location_combo.setCurrentIndex(0)
+
+        # project path (guess type stored into data)
+        le = self.tableWidget.cellWidget(idx, self.cols.uri)
+        le.setText(project.file)
+        try:
+            le.setStyleSheet("color: {};".format("black" if project.valid else "red"))
+        except Exception:
+            le.setStyleSheet("color: {};".format("black"))
+
+        # refresh day
+        if project.cache_config.refresh_days_period:
+            self.tableWidget.cellWidget(idx, self.cols.refresh_days).setValue(
+                project.cache_config.refresh_days_period
+            )
+
+        # Cache enable
+        self.tableWidget.cellWidget(idx, self.cols.enable_cache).setChecked(
+            project.cache_config.enable
+        )
 
     def setSourceMdText(self):
         self.mdSource1.setText(self.sourcesMdText[self.optionSourceMD[0]])
@@ -364,44 +334,46 @@ class MenuConfDialog(QDialog, FORM_CLASS):
                 except Exception:
                     pass
 
+    def _table_widget_row_project(self, row: int) -> Project:
+        """Return project from a table widget row
+
+        :param row: table widget row
+        :type row: int
+        :return: project in row
+        :rtype: Project
+        """
+        file_widget = self.tableWidget.cellWidget(row, self.cols.uri)
+        name_widget = self.tableWidget.cellWidget(row, self.cols.name)
+        name = name_widget.text()
+        filename = file_widget.text()
+
+        location_widget = self.tableWidget.cellWidget(row, self.cols.type_menu_location)
+        location = location_widget.itemData(location_widget.currentIndex())
+
+        cache_config = ProjectCacheConfig(
+            refresh_days_period=self.tableWidget.cellWidget(
+                row, self.cols.refresh_days
+            ).value(),
+            enable=self.tableWidget.cellWidget(row, self.cols.enable_cache).isChecked(),
+        )
+
+        type_storage = self.tableWidget.item(row, self.cols.uri).data(Qt.UserRole)
+
+        return Project(
+            file=filename,
+            name=name,
+            location=location,
+            valid=True,
+            type_storage=type_storage,
+            cache_config=cache_config,
+        )
+
     def onAccepted(self):
         settings = self.plg_settings.get_plg_settings()
         settings.projects = []
-        # self.log("count : {}".format(self.tableWidget.rowCount()))
         for row in range(self.tableWidget.rowCount()):
-            file_widget = self.tableWidget.cellWidget(row, self.cols.uri)
-            # self.log("row : {}".format(row))
-            if file_widget and file_widget.text():
-                # self.log("row {} : {}".format(row, file_widget.text()))
-
-                name_widget = self.tableWidget.cellWidget(row, self.cols.name)
-                name = name_widget.text()
-                filename = file_widget.text()
-
-                location_widget = self.tableWidget.cellWidget(
-                    row, self.cols.type_menu_location
-                )
-                location = location_widget.itemData(location_widget.currentIndex())
-
-                cache_config = ProjectCacheConfig(
-                    refresh_days_period=self.tableWidget.cellWidget(
-                        row, self.cols.refresh_days
-                    ).value(),
-                    enable=self.tableWidget.cellWidget(
-                        row, self.cols.enable_cache
-                    ).isChecked(),
-                )
-
-                settings.projects.append(
-                    Project(
-                        file=filename,
-                        name=name,
-                        location=location,
-                        valid=False,
-                        type_storage=guess_type_from_uri(filename),
-                        cache_config=cache_config,
-                    )
-                )
+            if project := self._table_widget_row_project(row):
+                settings.projects.append(project)
 
         settings.optionTooltip = self.cbxShowTooltip.isChecked()
         settings.optionLoadAll = self.cbxLoadAll.isChecked()
@@ -412,15 +384,16 @@ class MenuConfDialog(QDialog, FORM_CLASS):
 
         PlgOptionsManager().save_from_object(settings)
 
-    def onAdd(self, qgs_type_storage: str = "file"):
-        """Add a new line to the table.
+    def _set_table_widget_row_item(
+        self, row: int, qgs_type_storage: str = "file"
+    ) -> None:
+        """Define widget to use for a row
 
-        :param qgs_type_storage: project storage type, defaults to "file"
+        :param row: row to define
+        :type row: int
+        :param qgs_type_storage: type storage for label, defaults to "file"
         :type qgs_type_storage: str, optional
         """
-        row = self.tableWidget.rowCount()
-        self.tableWidget.setRowCount(row + 1)
-
         # edit button
         self.addEditButton(row, qgs_type_storage)
 
@@ -473,7 +446,18 @@ class MenuConfDialog(QDialog, FORM_CLASS):
         enable_cache_item.setFlags(Qt.ItemIsSelectable | Qt.ItemIsEnabled)
         self.tableWidget.setItem(row, self.cols.enable_cache, enable_cache_item)
         checkbox = QCheckBox()
+        checkbox.setChecked(True)
         self.tableWidget.setCellWidget(row, self.cols.enable_cache, checkbox)
+
+    def onAdd(self, qgs_type_storage: str = "file"):
+        """Add a new line to the table.
+
+        :param qgs_type_storage: project storage type, defaults to "file"
+        :type qgs_type_storage: str, optional
+        """
+        row = self.tableWidget.rowCount()
+        self.tableWidget.setRowCount(row + 1)
+        self._set_table_widget_row_item(row, qgs_type_storage)
 
         # apply table styling
         self.tableTunning()
@@ -496,124 +480,36 @@ class MenuConfDialog(QDialog, FORM_CLASS):
     def onMoveUp(self):
         """Move the selected lines upwards."""
         sr = self.tableWidget.selectedRanges()
-        try:
-            r = sr[0].topRow()
-            if r > 0:
-                typeA = self.tableWidget.item(r - 1, self.cols.uri).data(Qt.UserRole)
-                typeB = self.tableWidget.item(r, self.cols.uri).data(Qt.UserRole)
+        r = sr[0].topRow()
+        if r > 0:
+            project_a = self._table_widget_row_project(r - 1)
+            project_b = self._table_widget_row_project(r)
 
-                # project path
-                fileA = self.tableWidget.cellWidget(r - 1, self.cols.uri).text()
-                fileB = self.tableWidget.cellWidget(r, self.cols.uri).text()
-                self.tableWidget.cellWidget(r - 1, self.cols.uri).setText(fileB)
-                self.tableWidget.cellWidget(r, self.cols.uri).setText(fileA)
-                self.tableWidget.item(r - 1, self.cols.uri).setData(Qt.UserRole, typeB)
-                self.tableWidget.item(r, self.cols.uri).setData(Qt.UserRole, typeA)
+            if project_b.location == "merge" and r == 1:
+                project_b.location = "new"
 
-                # project name
-                nameA = self.tableWidget.cellWidget(r - 1, self.cols.name).text()
-                nameB = self.tableWidget.cellWidget(r, self.cols.name).text()
-                self.tableWidget.cellWidget(r - 1, self.cols.name).setText(nameB)
-                self.tableWidget.cellWidget(r, self.cols.name).setText(nameA)
+            self._set_table_widget_row_project(r - 1, project_b)
+            self._set_table_widget_row_project(r, project_a)
 
-                # project type menu location
-                locA = self.tableWidget.cellWidget(
-                    r - 1, self.cols.type_menu_location
-                ).currentIndex()
-                locB = self.tableWidget.cellWidget(
-                    r, self.cols.type_menu_location
-                ).currentIndex()
-                if locB == 2 and r == 1:
-                    locB = 0
-                self.tableWidget.cellWidget(
-                    r - 1, self.cols.type_menu_location
-                ).setCurrentIndex(locB)
-                self.tableWidget.cellWidget(
-                    r, self.cols.type_menu_location
-                ).setCurrentIndex(locA)
-
-                # project type storage
-                self.tableWidget.setCellWidget(
-                    r,
-                    self.cols.type_storage,
-                    self.mk_prj_storage_icon(typeA),
-                )
-                self.tableWidget.setCellWidget(
-                    r - 1,
-                    self.cols.type_storage,
-                    self.mk_prj_storage_icon(typeB),
-                )
-
-                self.tableWidget.removeCellWidget(r, self.cols.edit)
-                self.tableWidget.removeCellWidget(r - 1, self.cols.edit)
-                self.addEditButton(r, typeA)
-                self.addEditButton(r - 1, typeB)
-
-                # selected row
-                self.tableWidget.setCurrentCell(r - 1, 1)
-        except Exception as err:
-            self.log("Error moving up row {}. Trace: {}".format(r, err))
+            # selected row
+            self.tableWidget.setCurrentCell(r - 1, 1)
 
     def onMoveDown(self):
         sr = self.tableWidget.selectedRanges()
         nbRows = self.tableWidget.rowCount()
-        try:
-            r = sr[0].topRow()
-            if r < nbRows - 1:
-                typeA = self.tableWidget.item(r, self.cols.uri).data(Qt.UserRole)
-                typeB = self.tableWidget.item(r + 1, self.cols.uri).data(Qt.UserRole)
+        r = sr[0].topRow()
+        if r < nbRows - 1:
+            project_a = self._table_widget_row_project(r)
+            project_b = self._table_widget_row_project(r + 1)
 
-                # project path
-                fileA = self.tableWidget.cellWidget(r, self.cols.uri).text()
-                fileB = self.tableWidget.cellWidget(r + 1, self.cols.uri).text()
-                self.tableWidget.cellWidget(r, self.cols.uri).setText(fileB)
-                self.tableWidget.cellWidget(r + 1, self.cols.uri).setText(fileA)
-                self.tableWidget.item(r, self.cols.uri).setData(Qt.UserRole, typeB)
-                self.tableWidget.item(r + 1, self.cols.uri).setData(Qt.UserRole, typeA)
+            if project_b.location == "merge" and r == 0:
+                project_b.location = "new"
 
-                # project name
-                nameA = self.tableWidget.cellWidget(r, self.cols.name).text()
-                nameB = self.tableWidget.cellWidget(r + 1, self.cols.name).text()
-                self.tableWidget.cellWidget(r, self.cols.name).setText(nameB)
-                self.tableWidget.cellWidget(r + 1, self.cols.name).setText(nameA)
+            self._set_table_widget_row_project(r, project_b)
+            self._set_table_widget_row_project(r + 1, project_a)
 
-                # project type menu location
-                locA = self.tableWidget.cellWidget(
-                    r, self.cols.type_menu_location
-                ).currentIndex()
-                locB = self.tableWidget.cellWidget(
-                    r + 1, self.cols.type_menu_location
-                ).currentIndex()
-                if locB == 2 and r == 0:
-                    locB = 0
-                self.tableWidget.cellWidget(
-                    r, self.cols.type_menu_location
-                ).setCurrentIndex(locB)
-                self.tableWidget.cellWidget(
-                    r + 1, self.cols.type_menu_location
-                ).setCurrentIndex(locA)
-
-                # project type storage
-                self.tableWidget.setCellWidget(
-                    r,
-                    self.cols.type_storage,
-                    self.mk_prj_storage_icon(typeB),
-                )
-                self.tableWidget.setCellWidget(
-                    r + 1,
-                    self.cols.type_storage,
-                    self.mk_prj_storage_icon(typeA),
-                )
-
-                self.tableWidget.removeCellWidget(r, self.cols.edit)
-                self.tableWidget.removeCellWidget(r + 1, self.cols.edit)
-                self.addEditButton(r, typeB)
-                self.addEditButton(r + 1, typeA)
-
-                # selected row
-                self.tableWidget.setCurrentCell(r + 1, 1)
-        except Exception as err:
-            self.log("Error moving down row {}. Trace: {}".format(r, err))
+            # selected row
+            self.tableWidget.setCurrentCell(r + 1, 1)
 
     def onTextChanged(self, text: str):
         """Read the project using the URI of the project that changed into the table.
@@ -697,7 +593,7 @@ class MenuConfDialog(QDialog, FORM_CLASS):
         :return: QLabel to be set in a cellWidget
         :rtype: QLabel
         """
-        lbl_location_type = QLabel(self.tableWidget)
+        lbl_location_type = QLabel()
         lbl_location_type.setPixmap(QPixmap(icon_per_storage_type(qgs_type_storage)))
         lbl_location_type.setScaledContents(True)
         lbl_location_type.setMaximumSize(20, 20)
