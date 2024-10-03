@@ -40,26 +40,30 @@ def get_embedded_project_from_layer_tree(
     :rtype: str
     """
     element = node.toElement()
-    eFileNd = getFirstChildByAttrValue(
-        element, "property", "key", "embedded_project"
-    ) or getFirstChildByAttrValue(element, "Option", "name", "embedded_project")
-    filename = ""
-    if eFileNd:
-        # get project file name
-        embeddedFile = eFileNd.toElement().attribute("value")
-        if not absolute_project and (embeddedFile.find(".") == 0):
-            filename = QFileInfo(init_filename).path() + "/" + embeddedFile
-        else:
-            filename = QFileInfo(embeddedFile).absoluteFilePath()
-    else:
-        layer_id = element.attribute("id")
-
-        QgsMessageLog.logMessage(
-            f"Menu from layer: Embeded project not found for {layer_id}",
-            __title__,
-            notifyUser=True,
+    customproperties_nd = element.elementsByTagName("customproperties")
+    if customproperties_nd.size() > 0:
+        eFileNd = getFirstChildByAttrValue(
+            customproperties_nd.at(0), "property", "key", "embedded_project"
+        ) or getFirstChildByAttrValue(
+            customproperties_nd.at(0), "Option", "name", "embedded_project"
         )
         filename = ""
+        if eFileNd:
+            # get project file name
+            embeddedFile = eFileNd.toElement().attribute("value")
+            if not absolute_project and (embeddedFile.find(".") == 0):
+                filename = QFileInfo(init_filename).path() + "/" + embeddedFile
+            else:
+                filename = QFileInfo(embeddedFile).absoluteFilePath()
+        else:
+            layer_id = element.attribute("id")
+
+            QgsMessageLog.logMessage(
+                f"Menu from layer: Embeded project not found for {layer_id}",
+                __title__,
+                notifyUser=True,
+            )
+            filename = ""
     if filename == "" and not node.parentNode().isNull():
         return get_embedded_project_from_layer_tree(
             node.parentNode(),
@@ -83,18 +87,26 @@ def read_embedded_properties(
     :rtype: Tuple[bool, str]
     """
     element = node.toElement()
-    embedNd = getFirstChildByAttrValue(
-        element, "property", "key", "embedded"
-    ) or getFirstChildByAttrValue(element, "Option", "name", "embedded")
 
-    if embedNd and embedNd.toElement().attribute("value") == "1":
-        embedded = True
-        filename = get_embedded_project_from_layer_tree(
-            node=node, init_filename=init_filename, absolute_project=absolute_project
+    embedded = False
+    filename = init_filename
+
+    customproperties_nd = element.elementsByTagName("customproperties")
+    if customproperties_nd.size() > 0:
+        embedNd = getFirstChildByAttrValue(
+            customproperties_nd.at(0), "property", "key", "embedded"
+        ) or getFirstChildByAttrValue(
+            customproperties_nd.at(0), "Option", "name", "embedded"
         )
-    else:
-        embedded = False
-        filename = init_filename
+
+        if embedNd and embedNd.toElement().attribute("value") == "1":
+            embedded = True
+            filename = get_embedded_project_from_layer_tree(
+                node=node,
+                init_filename=init_filename,
+                absolute_project=absolute_project,
+            )
+
     return embedded, filename
 
 
