@@ -55,12 +55,13 @@ from menu_from_project.logic.tools import (
     icon_per_layer_type,
 )
 from menu_from_project.ui.menu_conf_dlg import MenuConfDialog  # noqa: F4 I001
-from menu_from_project.logic.project_read import (
+from menu_from_project.datamodel.project_config import (
     MenuGroupConfig,
     MenuLayerConfig,
     MenuProjectConfig,
-    get_project_menu_config,
 )
+
+from menu_from_project.logic.project_read import get_project_menu_config
 
 # ############################################################################
 # ########## Globals ###############

@@ -17,12 +17,12 @@ from qgis.core import QgsMapLayerType, QgsWkbTypes
 
 from pathlib import Path
 
-from menu_from_project.logic.project_read import (
+from menu_from_project.datamodel.project_config import (
     MenuProjectConfig,
     MenuGroupConfig,
     MenuLayerConfig,
-    get_project_menu_config,
 )
+from menu_from_project.logic.project_read import get_project_menu_config
 from menu_from_project.logic.qgs_manager import QgsDomManager
 
 
