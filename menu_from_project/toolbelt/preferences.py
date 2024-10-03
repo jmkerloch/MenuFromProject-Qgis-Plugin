@@ -138,6 +138,7 @@ class PlgOptionsManager:
                                 "refresh_days_period", None, type=int
                             ),
                             enable=s.value("enable", True, type=bool),
+                            cache_validation_uri=s.value("cache_validation_uri", ""),
                         )
                         s.endGroup()
 
@@ -193,6 +194,10 @@ class PlgOptionsManager:
                         "refresh_days_period", project.cache_config.refresh_days_period
                     )
                     s.setValue("enable", project.cache_config.enable)
+                    s.setValue(
+                        "cache_validation_uri",
+                        project.cache_config.cache_validation_uri,
+                    )
                     s.endGroup()
             finally:
                 s.endArray()
