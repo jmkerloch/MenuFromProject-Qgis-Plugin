@@ -5,7 +5,7 @@ from pathlib import Path
 from typing import Dict, Optional
 
 # project
-from menu_from_project.logic.project_read import MenuProjectConfig
+from menu_from_project.datamodel.project_config import MenuProjectConfig
 
 
 class CacheManager:
@@ -62,5 +62,18 @@ class CacheManager:
         """
         cache_path = Path(self.iface.userProfileManager().userProfile().folder())
         cache_path = cache_path / ".cache" / "menu-layer" / project["name"]
+        cache_path.mkdir(parents=True, exist_ok=True)
+        return cache_path
+
+    def get_project_download_dir(self, project: Dict[str, str]) -> Path:
+        """Get local project cache download directory
+
+        :param project: dict of information about the project
+        :type project: Dict[str, str]
+        :return: path to project cache directory
+        :rtype: Path
+        """
+        cache_path = self.get_project_cache_dir(project)
+        cache_path = cache_path / "downloads"
         cache_path.mkdir(parents=True, exist_ok=True)
         return cache_path

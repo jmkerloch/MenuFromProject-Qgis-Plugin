@@ -357,6 +357,7 @@ def get_project_menu_config(
 
     # Get path to QgsProject file, local / downloaded / from postgres database
     uri = project["file"]
+    qgs_dom_manager.set_project(project)
     doc, filename = qgs_dom_manager.getQgsDoc(uri)
 
     # Define project name
@@ -373,7 +374,7 @@ def get_project_menu_config(
             # Create dict of maplayer nodes
             maplayer_dict = create_map_layer_dict(doc)
             # Parse node for group and layers
-            return MenuProjectConfig(
+            menu_project_config = MenuProjectConfig(
                 project_name=name,
                 filename=filename,
                 uri=uri,
@@ -385,4 +386,7 @@ def get_project_menu_config(
                     absolute_project=is_absolute(doc),
                 ),
             )
+
+            qgs_dom_manager.set_project(None)
+            return menu_project_config
     return None

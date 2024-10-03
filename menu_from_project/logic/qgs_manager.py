@@ -10,7 +10,7 @@ import os
 import zipfile
 from functools import lru_cache
 from pathlib import Path
-from typing import Dict, Tuple
+from typing import Dict, Optional, Tuple
 from urllib.parse import urlparse
 
 # PyQGIS
@@ -28,11 +28,13 @@ from qgis.PyQt.QtCore import (
     QFileInfo,
     QIODevice,
     QTemporaryDir,
-    QTemporaryFile,
     QUrl,
 )
 
+from qgis.utils import iface
+
 # project
+from menu_from_project.logic.cache_manager import CacheManager
 from menu_from_project.logic.tools import guess_type_from_uri
 from menu_from_project.logic.xml_utils import getFirstChildByTagNameValue
 from menu_from_project.__about__ import __title__, __title_clean__
@@ -158,7 +160,9 @@ def read_from_file(uri: str) -> QtXml.QDomDocument:
     return doc
 
 
-def read_from_database(uri: str, project_registry) -> Tuple[QtXml.QDomDocument, str]:
+def read_from_database(
+    uri: str, project_registry, download_folder: Path
+) -> Tuple[QtXml.QDomDocument, str]:
     """Read a QGIS project stored into a (PostgreSQL) database.
 
     :param uri: connection string to QGIS project stored into a database.
@@ -167,28 +171,19 @@ def read_from_database(uri: str, project_registry) -> Tuple[QtXml.QDomDocument, 
     :return: a tuple with XML document and the filepath.
     :rtype: Tuple[QtXml.QDomDocument, str]
     """
-    doc = QtXml.QDomDocument()
     # uri PG
     project_storage = project_registry.projectStorageFromUri(uri)
+    _, metadata = project_storage.readProjectStorageMetadata(uri)
 
-    temporary_zip = QTemporaryFile()
-    temporary_zip.open()
-    zip_project = temporary_zip.fileName()
+    project_file = download_folder / f"{metadata.name}.qgz"
+    temporary_zip = QFile(str(project_file))
+    temporary_zip.open(QIODevice.WriteOnly)
 
     project_storage.readProject(uri, temporary_zip, QgsReadWriteContext())
+    temporary_zip.close()
 
-    temporary_unzip = QTemporaryDir()
-    temporary_unzip.setAutoRemove(False)
-    with zipfile.ZipFile(zip_project, "r") as zip_ref:
-        zip_ref.extractall(temporary_unzip.path())
-
-    project_filename = QDir(temporary_unzip.path()).entryList(["*.qgs"])[0]
-    project_path = os.path.join(temporary_unzip.path(), project_filename)
-    xml = QFile(project_path)
-    if xml.open(QIODevice.ReadOnly | QIODevice.Text):
-        doc.setContent(xml)
-
-    return doc, project_path
+    doc = read_from_file(str(project_file))
+    return doc, str(project_file)
 
 
 def downloadError(errorMessages):
@@ -199,7 +194,7 @@ def downloadError(errorMessages):
 
 
 @lru_cache()
-def read_from_http(uri: str, cache_folder: Path):
+def read_from_http(uri: str, download_folder: Path):
     """Read a QGIS project stored into on a remote web server accessible through HTTP.
 
     :param uri: web URL to the QGIS project
@@ -216,7 +211,7 @@ def read_from_http(uri: str, cache_folder: Path):
                 uri
             )
         )
-    cached_filepath = cache_folder / parsed.path.rpartition("/")[2]
+    cached_filepath = download_folder / parsed.path.rpartition("/")[2]
 
     # download it
     loop = QEventLoop()
@@ -239,20 +234,41 @@ class QgsDomManager:
     Read xml document are stored in a dict.
     """
 
-    def __init__(self) -> None:
+    def __init__(self, project: Optional[Dict[str, str]] = None) -> None:
         self.docs = dict()
         self.project_registry = QgsApplication.projectStorageRegistry()
+        self.project = project
+        self.cache_manager = CacheManager(iface)
 
-    def getQgsDoc(self, uri):
+    def set_project(self, project: Optional[Dict[str, str]]) -> None:
+        """Define project used to check cache in project cache directory
+
+        :param project: dict of information about the project
+        :type project: Optional[Dict[str, str]]
+        """
+        self.project = project
+
+    def _get_download_folder(self) -> Path:
+        """Get download folder for url and postgres uri
+        If a project was defined, project cache download dir is used
+
+        :return: path to download folder
+        :rtype: Path
+        """
+        if self.project:
+            return self.cache_manager.get_project_download_dir(self.project)
+        return cache_folder
+
+    def getQgsDoc(self, uri: str) -> Tuple[QtXml.QDomDocument, str]:
         """Return the XML document and the path from an URI.
 
         The URI can be a filepath or stored in database.
 
         :param uri: The URI to fetch.
-        :type uri: basestring
+        :type uri: str
 
         :return: Tuple with XML document and the filepath.
-        :rtype: (QDomDocument, basestring)
+        :rtype: (QDomDocument, str)
         """
         # determine storage type: file, database or http
         qgs_storage_type = guess_type_from_uri(uri)
@@ -265,20 +281,22 @@ class QgsDomManager:
             doc = read_from_file(uri)
             project_path = uri
         elif qgs_storage_type == "database":
-            doc, project_path = read_from_database(uri, self.project_registry)
+            doc, project_path = read_from_database(
+                uri, self.project_registry, self._get_download_folder()
+            )
         elif qgs_storage_type == "http":
-            doc, project_path = read_from_http(uri, cache_folder)
+            doc, project_path = read_from_http(uri, self._get_download_folder())
         else:
             QgsMessageLog.logMessage(
                 f"Unrecognized project type: {uri}", __title__, notifyUser=True
             )
 
         # store doc into the plugin registry
-        self.docs[project_path] = doc
+        self.docs[uri] = doc
 
         return doc, project_path
 
-    def getMapLayerDomFromQgs(self, fileName, layerId):
+    def getMapLayerDomFromQgs(self, fileName: str, layerId: str) -> QtXml.QDomNode:
         """Return the maplayer node in a project filepath given a maplayer ID.
 
         :param fileName: The project filepath on the filesystem.
