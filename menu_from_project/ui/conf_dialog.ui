@@ -9,8 +9,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>753</width>
-    <height>336</height>
+    <width>1010</width>
+    <height>386</height>
    </rect>
   </property>
   <property name="sizePolicy">
@@ -98,7 +98,7 @@
         <number>1</number>
        </property>
        <property name="columnCount">
-        <number>8</number>
+        <number>10</number>
        </property>
        <attribute name="horizontalHeaderVisible">
         <bool>true</bool>
@@ -159,7 +159,17 @@
        </column>
        <column>
         <property name="text">
+         <string>Clear cache</string>
+        </property>
+       </column>
+       <column>
+        <property name="text">
          <string>Cache validation file</string>
+        </property>
+       </column>
+       <column>
+        <property name="text">
+         <string>ID</string>
         </property>
        </column>
       </widget>
