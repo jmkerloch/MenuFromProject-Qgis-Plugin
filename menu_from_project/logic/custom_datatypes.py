@@ -19,5 +19,6 @@ TABLE_COLUMNS_ORDER = namedtuple(
         "refresh_days",
         "enable_cache",
         "cache_validation_file",
+        "id",
     ],
 )
