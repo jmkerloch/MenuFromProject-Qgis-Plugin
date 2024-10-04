@@ -8,6 +8,7 @@ class ProjectCacheConfig:
 
     enable: bool = True
     refresh_days_period: Optional[int] = None
+    cache_validation_uri: str = ""
 
 
 @dataclass
