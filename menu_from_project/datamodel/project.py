@@ -15,6 +15,7 @@ class ProjectCacheConfig:
 class Project:
     """All information for project"""
 
+    id: str
     name: str
     location: str
     file: str

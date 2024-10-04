@@ -7,6 +7,7 @@
 # standard
 from dataclasses import dataclass, field
 from typing import List
+import uuid
 
 # PyQGIS
 from qgis.core import QgsSettings
@@ -150,6 +151,7 @@ class PlgOptionsManager:
                                     location=location,
                                     type_storage=type_storage,
                                     cache_config=cache_config,
+                                    id=s.value("id", str(uuid.uuid4())),
                                 )
                             )
                 finally:
@@ -188,6 +190,7 @@ class PlgOptionsManager:
                     s.setValue("name", project.name)
                     s.setValue("location", project.location)
                     s.setValue("type_storage", guess_type_from_uri(project.file))
+                    s.setValue("id", project.id)
 
                     s.beginGroup("cache_config")
                     s.setValue(

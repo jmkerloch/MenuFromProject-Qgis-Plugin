@@ -7,6 +7,7 @@
 # Standard library
 import logging
 from functools import partial
+import uuid
 
 # PyQGIS
 from menu_from_project.datamodel.project import Project, ProjectCacheConfig
@@ -84,6 +85,7 @@ class MenuConfDialog(QDialog, FORM_CLASS):
             refresh_days=5,
             enable_cache=6,
             cache_validation_file=7,
+            id=8,
         )
 
         # menu locations
@@ -219,6 +221,9 @@ class MenuConfDialog(QDialog, FORM_CLASS):
         self.tableWidget.cellWidget(idx, self.cols.cache_validation_file).setFilePath(
             project.cache_config.cache_validation_uri
         )
+
+        # ID
+        self.tableWidget.item(idx, self.cols.id).setText(project.id)
 
     def setSourceMdText(self):
         self.mdSource1.setText(self.sourcesMdText[self.optionSourceMD[0]])
@@ -374,6 +379,7 @@ class MenuConfDialog(QDialog, FORM_CLASS):
             valid=True,
             type_storage=type_storage,
             cache_config=cache_config,
+            id=self.tableWidget.item(row, self.cols.id).text(),
         )
 
     def onAccepted(self):
@@ -471,6 +477,10 @@ class MenuConfDialog(QDialog, FORM_CLASS):
             row, self.cols.cache_validation_file, qgs_file_widget
         )
 
+        # id
+        id_item = QTableWidgetItem()
+        self.tableWidget.setItem(row, self.cols.id, id_item)
+
     def onAdd(self, qgs_type_storage: str = "file"):
         """Add a new line to the table.
 
@@ -480,6 +490,8 @@ class MenuConfDialog(QDialog, FORM_CLASS):
         row = self.tableWidget.rowCount()
         self.tableWidget.setRowCount(row + 1)
         self._set_table_widget_row_item(row, qgs_type_storage)
+
+        self.tableWidget.item(row, self.cols.id).setText(str(uuid.uuid4()))
 
         # apply table styling
         self.tableTunning()
