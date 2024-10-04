@@ -13,6 +13,7 @@ import uuid
 from menu_from_project.datamodel.project import Project, ProjectCacheConfig
 from menu_from_project.logic.cache_manager import CacheManager
 from menu_from_project.logic.qgs_manager import QgsDomManager
+from menu_from_project.toolbelt.log_handler import PlgLogger
 from menu_from_project.toolbelt.preferences import (
     SOURCE_MD_LAYER,
     SOURCE_MD_NOTE,
@@ -65,6 +66,7 @@ class MenuConfDialog(QDialog, FORM_CLASS):
         QDialog.__init__(self, parent)
         self.setupUi(self)
 
+        self.log = PlgLogger().log
         self.plg_settings = PlgOptionsManager()
         self.qgs_dom_manager = QgsDomManager()
 
@@ -510,13 +512,6 @@ class MenuConfDialog(QDialog, FORM_CLASS):
 
         # apply table styling
         self.tableTunning()
-
-    @staticmethod
-    def log(message, application=__title__, indent=0):
-        indent_chars = " .. " * indent
-        QgsMessageLog.logMessage(
-            f"{indent_chars}{message}", application, notifyUser=True
-        )
 
     def onDelete(self):
         """Remove selected lines from the table."""

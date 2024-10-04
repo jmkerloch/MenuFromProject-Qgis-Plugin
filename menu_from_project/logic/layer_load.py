@@ -5,6 +5,7 @@ from typing import Dict, List, Optional, Tuple
 
 
 # PyQGIS
+from menu_from_project.toolbelt.log_handler import PlgLogger
 from menu_from_project.toolbelt.preferences import PlgOptionsManager
 from qgis.core import (
     QgsApplication,
@@ -49,9 +50,7 @@ class LayerLoad:
     @staticmethod
     def log(message, application=__title__, indent=0):
         indent_chars = " .. " * indent
-        QgsMessageLog.logMessage(
-            f"{indent_chars}{message}", application, notifyUser=True
-        )
+        PlgLogger().log(f"{indent_chars}{message}", application)
 
     @staticmethod
     def tr(message):

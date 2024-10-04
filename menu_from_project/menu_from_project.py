@@ -27,6 +27,7 @@ from typing import Dict, Optional, List, Tuple, Any
 from menu_from_project.datamodel.project import Project
 from menu_from_project.logic.cache_manager import CacheManager
 from menu_from_project.logic.layer_load import LayerLoad
+from menu_from_project.toolbelt.log_handler import PlgLogger
 from menu_from_project.toolbelt.preferences import (
     SOURCE_MD_LAYER,
     SOURCE_MD_NOTE,
@@ -123,6 +124,7 @@ class MenuFromProject:
         self.initMenus()
 
     def __init__(self, iface):
+        self.log = PlgLogger().log
         self.task = None
         self.path = QFileInfo(os.path.realpath(__file__)).path()
 
@@ -156,13 +158,6 @@ class MenuFromProject:
     @staticmethod
     def tr(message):
         return QCoreApplication.translate("MenuFromProject", message)
-
-    @staticmethod
-    def log(message, application=__title__, indent=0):
-        indent_chars = " .. " * indent
-        QgsMessageLog.logMessage(
-            f"{indent_chars}{message}", application, notifyUser=True
-        )
 
     def initMenus(self):
         menuBar = self.iface.editMenu().parentWidget()

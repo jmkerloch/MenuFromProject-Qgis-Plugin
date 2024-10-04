@@ -20,6 +20,7 @@ from qgis.PyQt.QtCore import (
 from menu_from_project.__about__ import __title__
 from menu_from_project.datamodel.project import Project
 from menu_from_project.datamodel.project_config import MenuProjectConfig
+from menu_from_project.toolbelt.log_handler import PlgLogger
 
 
 class CacheManager:
@@ -33,17 +34,11 @@ class CacheManager:
 
     def __init__(self, iface) -> None:
         self.iface = iface
+        self.log = PlgLogger().log
 
     @staticmethod
     def tr(message):
         return QCoreApplication.translate("MenuFromProject", message)
-
-    @staticmethod
-    def log(message, application=__title__, indent=0):
-        indent_chars = " .. " * indent
-        QgsMessageLog.logMessage(
-            f"{indent_chars}{message}", application, notifyUser=True
-        )
 
     def clear_project_cache(self, project: Project) -> None:
         """Clear project cache directory
@@ -53,6 +48,8 @@ class CacheManager:
         """
         project_cache_dir = self.get_project_cache_dir(project)
         shutil.rmtree(project_cache_dir)
+
+        self.log(self.tr(f"Cache folder cleared for project {project.name}."))
 
     def downloadError(self, errorMessages: List[str]):
         """Display error messages that occurs during download
