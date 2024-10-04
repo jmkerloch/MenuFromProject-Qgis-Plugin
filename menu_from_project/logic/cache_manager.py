@@ -257,7 +257,7 @@ class CacheManager:
         :rtype: Path
         """
         cache_path = Path(self.iface.userProfileManager().userProfile().folder())
-        cache_path = cache_path / ".cache" / "menu-layer" / project.name
+        cache_path = cache_path / "cache" / "menu_from_project" / project.name
         cache_path.mkdir(parents=True, exist_ok=True)
         return cache_path
 
