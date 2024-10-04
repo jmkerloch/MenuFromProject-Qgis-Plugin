@@ -240,6 +240,10 @@ class QgsDomManager:
         self.project = project
         self.cache_manager = CacheManager(iface)
 
+    def cache_clear(self) -> None:
+        """Clear cache of QtXml.QDomDocument for uri"""
+        self.docs = dict()
+
     def set_project(self, project: Optional[Dict[str, str]]) -> None:
         """Define project used to check cache in project cache directory
 
