@@ -134,8 +134,10 @@ class PlgOptionsManager:
 
                         s.beginGroup("cache_config")
                         cache_config = ProjectCacheConfig(
-                            refresh_days_period=s.value("refresh_days_period", None),
-                            enable=s.value("enable", True),
+                            refresh_days_period=s.value(
+                                "refresh_days_period", None, type=int
+                            ),
+                            enable=s.value("enable", True, type=bool),
                         )
                         s.endGroup()
 
