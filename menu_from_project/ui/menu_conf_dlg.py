@@ -372,7 +372,9 @@ class MenuConfDialog(QDialog, FORM_CLASS):
         settings = self.plg_settings.get_plg_settings()
         settings.projects = []
         for row in range(self.tableWidget.rowCount()):
-            if project := self._table_widget_row_project(row):
+            project = self._table_widget_row_project(row)
+            # Only get project with file defined
+            if project.file:
                 settings.projects.append(project)
 
         settings.optionTooltip = self.cbxShowTooltip.isChecked()
