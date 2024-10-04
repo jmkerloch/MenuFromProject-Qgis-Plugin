@@ -76,6 +76,7 @@ class PlgOptionsManager:
         try:
             s.beginGroup("menu_from_project")
             try:
+                options.debug_mode = s.value("debug_mode", False, bool)
                 options.optionTooltip = s.value("optionTooltip", True, type=bool)
                 options.optionCreateGroup = s.value(
                     "optionCreateGroup", False, type=bool
@@ -176,6 +177,7 @@ class PlgOptionsManager:
 
         s.beginGroup("menu_from_project")
         try:
+            s.setValue("debug_mode", plugin_settings_obj.debug_mode)
             s.setValue("optionTooltip", plugin_settings_obj.optionTooltip)
             s.setValue("optionCreateGroup", plugin_settings_obj.optionCreateGroup)
             s.setValue("optionLoadAll", plugin_settings_obj.optionLoadAll)

@@ -180,6 +180,9 @@ class MenuConfDialog(QDialog, FORM_CLASS):
         }
         self.optionSourceMD = settings.optionSourceMD
 
+        # misc
+        self.opt_debug.setChecked(settings.debug_mode)
+
         self.tableTunning()
 
     def _set_table_widget_row_project(self, idx: int, project: Project) -> None:
@@ -401,6 +404,8 @@ class MenuConfDialog(QDialog, FORM_CLASS):
         settings.optionOpenLinks = self.cbxOpenLinks.isChecked()
 
         settings.optionSourceMD = self.optionSourceMD
+
+        settings.debug_mode = self.opt_debug.isChecked()
 
         PlgOptionsManager().save_from_object(settings)
 
