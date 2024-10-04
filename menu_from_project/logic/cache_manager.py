@@ -4,6 +4,7 @@ from datetime import datetime, timedelta
 import json
 import os
 from pathlib import Path
+import shutil
 import tempfile
 from typing import List, Optional
 
@@ -43,6 +44,15 @@ class CacheManager:
         QgsMessageLog.logMessage(
             f"{indent_chars}{message}", application, notifyUser=True
         )
+
+    def clear_project_cache(self, project: Project) -> None:
+        """Clear project cache directory
+
+        :param project: project
+        :type project: Project
+        """
+        project_cache_dir = self.get_project_cache_dir(project)
+        shutil.rmtree(project_cache_dir)
 
     def downloadError(self, errorMessages: List[str]):
         """Display error messages that occurs during download

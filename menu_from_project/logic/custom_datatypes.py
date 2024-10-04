@@ -20,5 +20,6 @@ TABLE_COLUMNS_ORDER = namedtuple(
         "enable_cache",
         "cache_validation_file",
         "id",
+        "delete_cache",
     ],
 )
