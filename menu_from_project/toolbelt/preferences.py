@@ -13,6 +13,7 @@ from qgis.core import QgsSettings
 
 # package
 from menu_from_project.__about__ import __title__, __version__
+from menu_from_project.datamodel.project import Project, ProjectCacheConfig
 from menu_from_project.logic.tools import guess_type_from_uri
 
 # ############################################################################
@@ -33,7 +34,7 @@ class PlgSettingsStructure:
     version: str = __version__
 
     # Projects
-    projects: List[dict[str, str]] = field(default_factory=lambda: [])
+    projects: List[Project] = field(default_factory=lambda: [])
 
     # Menu option
     optionTooltip: bool = False
@@ -130,14 +131,25 @@ class PlgOptionsManager:
                         type_storage = s.value(
                             "type_storage", guess_type_from_uri(file)
                         )
+
+                        s.beginGroup("cache_config")
+                        cache_config = ProjectCacheConfig(
+                            refresh_days_period=s.value(
+                                "refresh_days_period", None, type=int
+                            ),
+                            enable=s.value("enable", True, type=bool),
+                        )
+                        s.endGroup()
+
                         if file != "":
                             options.projects.append(
-                                {
-                                    "file": file,
-                                    "name": name,
-                                    "location": location,
-                                    "type_storage": type_storage,
-                                }
+                                Project(
+                                    file=file,
+                                    name=name,
+                                    location=location,
+                                    type_storage=type_storage,
+                                    cache_config=cache_config,
+                                )
                             )
                 finally:
                     s.endArray()
@@ -171,16 +183,17 @@ class PlgOptionsManager:
             try:
                 for i, project in enumerate(plugin_settings_obj.projects):
                     s.setArrayIndex(i)
-                    s.setValue("file", project["file"])
-                    s.setValue("name", project["name"])
-                    s.setValue("location", project["location"])
+                    s.setValue("file", project.file)
+                    s.setValue("name", project.name)
+                    s.setValue("location", project.location)
+                    s.setValue("type_storage", guess_type_from_uri(project.file))
+
+                    s.beginGroup("cache_config")
                     s.setValue(
-                        "type_storage",
-                        project.get(
-                            "type_storage",
-                            guess_type_from_uri(project.get("file")),
-                        ),
+                        "refresh_days_period", project.cache_config.refresh_days_period
                     )
+                    s.setValue("enable", project.cache_config.enable)
+                    s.endGroup()
             finally:
                 s.endArray()
         finally:

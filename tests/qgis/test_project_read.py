@@ -24,6 +24,7 @@ from menu_from_project.datamodel.project_config import (
 )
 from menu_from_project.logic.project_read import get_project_menu_config
 from menu_from_project.logic.qgs_manager import QgsDomManager
+from menu_from_project.datamodel.project import Project
 
 
 # ############################################################################
@@ -37,19 +38,22 @@ class TestProjectMenuConfig(unittest.TestCase):
 
         qgs_dom_manager = QgsDomManager()
         filename = str(Path(__file__).parent / ".." / "projets" / "aeag-tiny.qgz")
-        project = {
-            "file": filename,
-            "name": "test_import",
-        }
+
+        project = Project(
+            name="test_import",
+            location="layer",
+            file=filename,
+            type_storage="file",
+        )
 
         result = get_project_menu_config(
             project=project, qgs_dom_manager=qgs_dom_manager
         )
 
         expected = MenuProjectConfig(
-            project_name="test_import",
+            project_name=project.name,
             filename=filename,
-            uri=project["file"],
+            uri=project.file,
             root_group=MenuGroupConfig(
                 name="",
                 filename=filename,
