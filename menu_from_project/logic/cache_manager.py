@@ -2,12 +2,18 @@
 from dataclasses import asdict
 from datetime import datetime, timedelta
 import json
+import os
 from pathlib import Path
-from typing import Optional
+import tempfile
+from typing import List, Optional
 
 # PyQGIS
-from qgis.core import QgsMessageLog
+from qgis.core import QgsMessageLog, QgsFileDownloader
 from qgis.PyQt.QtCore import QCoreApplication
+from qgis.PyQt.QtCore import (
+    QEventLoop,
+    QUrl,
+)
 
 # project
 from menu_from_project.__about__ import __title__
@@ -38,6 +44,109 @@ class CacheManager:
             f"{indent_chars}{message}", application, notifyUser=True
         )
 
+    def downloadError(self, errorMessages: List[str]):
+        """Display error messages that occurs during download
+
+        :param errorMessages: error messages
+        :type errorMessages: List[str]
+        """
+        for err in errorMessages:
+            QgsMessageLog.logMessage(
+                "Download error. " + err,
+                "Layers menu from project",
+                notifyUser=True,
+            )
+
+    def _try_load_cache_validation_file(
+        self, cache_validation_file: str, cache_validation_uri: str
+    ) -> dict:
+        """Try to load file content as json.
+
+        :param cache_validation_file: file to load
+        :type cache_validation_file: str
+        :param cache_validation_uri: cache validation uri for this file
+        :type cache_validation_uri: str
+        :return: dict from json data in file
+        :rtype: dict
+        """
+        with open(cache_validation_file, encoding="UTF-8") as f:
+            try:
+                data = json.load(f)
+                return data
+            except json.JSONDecodeError as e:
+                self.log(
+                    f"Invalid content in cache validation file '{cache_validation_uri}' : {e}. Can't check cache context."
+                )
+        return {}
+
+    def get_cache_validation(self, cache_validation_uri: str) -> dict:
+        """Read dict for cache validation for cache validation uri
+        If uri if an url with http, the file is downloaded in a temporary dir
+
+        If the file is not available (downloaded or local), an empty dict is returned
+
+        If the file content is not json, an empty dict is returned
+
+        :param cache_validation_uri: cache validation ur
+        :type cache_validation_uri: str
+        :return: dict for cache validation
+        :rtype: dict
+        """
+        data = {}
+        if cache_validation_uri.startswith("http"):
+            # download it
+            with tempfile.NamedTemporaryFile() as f:
+                temp_file_path = f.name
+
+            loop = QEventLoop()
+            project_download = QgsFileDownloader(
+                url=QUrl(cache_validation_uri),
+                outputFileName=temp_file_path,
+                delayStart=True,
+            )
+            project_download.downloadExited.connect(loop.quit)
+            project_download.downloadError.connect(self.downloadError)
+            project_download.startDownload()
+            loop.exec_()
+
+            if Path(temp_file_path).exists():
+                data = self._try_load_cache_validation_file(
+                    cache_validation_file=temp_file_path,
+                    cache_validation_uri=cache_validation_uri,
+                )
+                os.remove(temp_file_path)
+            else:
+                self.log(
+                    f"Error when downloading cache validation file '{cache_validation_uri}'. Can't check cache context."
+                )
+        else:
+            if Path(cache_validation_uri).exists():
+                data = self._try_load_cache_validation_file(
+                    cache_validation_file=cache_validation_uri,
+                    cache_validation_uri=cache_validation_uri,
+                )
+            else:
+                self.log(
+                    f"Cache validation file '{cache_validation_uri}' doesn't exist. Can't check cache context."
+                )
+        return data
+
+    def get_available_cache_info(self, project: Project) -> dict:
+        """Read available cache info, empty dict if no cache info available
+
+        :param project: project
+        :type project: Project
+        :return: cache info in dict
+        :rtype: dict
+        """
+        cache_info = {}
+        cache_path = self.get_project_cache_dir(project)
+        cache_info_path = cache_path / "cache_info.json"
+        if cache_info_path.exists():
+            with open(cache_info_path, encoding="UTF-8") as f:
+                cache_info = json.load(f)
+        return cache_info
+
     def check_if_cache_enabled(self, project: Project) -> bool:
         """Check if cache is enabled for project
 
@@ -52,16 +161,18 @@ class CacheManager:
             return False
 
         # Check if a cache info is available
-        cache_info = {}
-        cache_path = self.get_project_cache_dir(project)
-        cache_info_path = cache_path / "cache_info.json"
-        if cache_info_path.exists():
-            with open(cache_info_path, encoding="UTF-8") as f:
-                cache_info = json.load(f)
-        if "last_refresh" in cache_info and cache_config.refresh_days_period:
+        cache_info = self.get_available_cache_info(project)
+
+        # Get cache last refresh
+        if "last_refresh" in cache_info:
             cache_last_refresh = datetime.strptime(
                 cache_info["last_refresh"], self.DATETIME_FORMAT
             )
+        else:
+            cache_last_refresh = None
+
+        # Check refresh days period
+        if cache_last_refresh and cache_config.refresh_days_period:
             refresh_date = cache_last_refresh + timedelta(
                 days=cache_config.refresh_days_period
             )
@@ -72,6 +183,24 @@ class CacheManager:
                     )
                 )
                 return False
+
+        # Check validation file
+        if cache_config.cache_validation_uri:
+            cache_validation_data = self.get_cache_validation(
+                cache_config.cache_validation_uri
+            )
+            if "last_release" in cache_validation_data and cache_last_refresh:
+                last_release = datetime.strptime(
+                    cache_validation_data["last_release"], self.DATETIME_FORMAT
+                )
+                if last_release > cache_last_refresh:
+                    self.log(
+                        self.tr(
+                            f"Cache is not up to date with last release version in cache validation file {last_release} for project {project.name}."
+                        )
+                    )
+                    return False
+
         return True
 
     def get_project_menu_config(self, project: Project) -> Optional[MenuProjectConfig]:
