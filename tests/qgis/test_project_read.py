@@ -44,6 +44,7 @@ class TestProjectMenuConfig(unittest.TestCase):
             location="layer",
             file=filename,
             type_storage="file",
+            id="unique_id"
         )
 
         result = get_project_menu_config(

@@ -7,9 +7,11 @@
 # Standard library
 import logging
 from functools import partial
+import uuid
 
 # PyQGIS
 from menu_from_project.datamodel.project import Project, ProjectCacheConfig
+from menu_from_project.logic.cache_manager import CacheManager
 from menu_from_project.logic.qgs_manager import QgsDomManager
 from menu_from_project.toolbelt.preferences import (
     SOURCE_MD_LAYER,
@@ -83,7 +85,9 @@ class MenuConfDialog(QDialog, FORM_CLASS):
             uri=4,
             refresh_days=5,
             enable_cache=6,
-            cache_validation_file=7,
+            delete_cache=7,
+            cache_validation_file=8,
+            id=9,
         )
 
         # menu locations
@@ -219,6 +223,9 @@ class MenuConfDialog(QDialog, FORM_CLASS):
         self.tableWidget.cellWidget(idx, self.cols.cache_validation_file).setFilePath(
             project.cache_config.cache_validation_uri
         )
+
+        # ID
+        self.tableWidget.item(idx, self.cols.id).setText(project.id)
 
     def setSourceMdText(self):
         self.mdSource1.setText(self.sourcesMdText[self.optionSourceMD[0]])
@@ -374,6 +381,7 @@ class MenuConfDialog(QDialog, FORM_CLASS):
             valid=True,
             type_storage=type_storage,
             cache_config=cache_config,
+            id=self.tableWidget.item(row, self.cols.id).text(),
         )
 
     def onAccepted(self):
@@ -471,6 +479,23 @@ class MenuConfDialog(QDialog, FORM_CLASS):
             row, self.cols.cache_validation_file, qgs_file_widget
         )
 
+        # id
+        id_item = QTableWidgetItem()
+        self.tableWidget.setItem(row, self.cols.id, id_item)
+
+        # delete cache option
+        delete_cache_button = QToolButton(self.tableWidget)
+        delete_cache_button.setGeometry(QRect(0, 0, 20, 20))
+        delete_cache_button.setIcon(
+            QIcon(":images/themes/default/console/iconClearConsole.svg")
+        )
+        delete_cache_button.setToolTip(self.tr("Delete cache for this project"))
+
+        self.tableWidget.setCellWidget(row, self.cols.delete_cache, delete_cache_button)
+        delete_cache_button.clicked.connect(
+            lambda checked, idx=row: self.on_delete_cache(row)
+        )
+
     def onAdd(self, qgs_type_storage: str = "file"):
         """Add a new line to the table.
 
@@ -480,6 +505,8 @@ class MenuConfDialog(QDialog, FORM_CLASS):
         row = self.tableWidget.rowCount()
         self.tableWidget.setRowCount(row + 1)
         self._set_table_widget_row_item(row, qgs_type_storage)
+
+        self.tableWidget.item(row, self.cols.id).setText(str(uuid.uuid4()))
 
         # apply table styling
         self.tableTunning()
@@ -532,6 +559,11 @@ class MenuConfDialog(QDialog, FORM_CLASS):
 
             # selected row
             self.tableWidget.setCurrentCell(r + 1, 1)
+
+    def on_delete_cache(self, row: int) -> None:
+        project = self._table_widget_row_project(row)
+        cache_manager = CacheManager(iface)
+        cache_manager.clear_project_cache(project=project)
 
     def onTextChanged(self, text: str):
         """Read the project using the URI of the project that changed into the table.
@@ -590,6 +622,7 @@ class MenuConfDialog(QDialog, FORM_CLASS):
         self.tableWidget.resizeColumnToContents(self.cols.name)
         self.tableWidget.resizeColumnToContents(self.cols.type_menu_location)
         self.tableWidget.resizeColumnToContents(self.cols.uri)
+        self.tableWidget.resizeColumnToContents(self.cols.delete_cache)
 
     # -- Widgets factory ---------------------------------------------------------------
     def mk_prj_edit_button(self, fileName="edit") -> QToolButton:
