@@ -176,6 +176,38 @@ class GroupItem(QgsDataCollectionItem):
                 children.insert(0, GroupItem(parent=self, group_config=child))
         return children
 
+    def actions(self, parent: QWidget) -> List[QAction]:
+        """Return list of available actions for layer
+
+        :param parent: parent
+        :type parent: QWidget
+        :return: list of available actions
+        :rtype: List[QAction]
+        """
+        settings = PlgOptionsManager().get_plg_settings()
+
+        if len(self._get_layer_inserted()) != 0 and settings.optionLoadAll:
+            ac_show_layer = QAction(self.tr("Load all"), parent)
+            ac_show_layer.triggered.connect(self._add_layer_inserted)
+            return [ac_show_layer]
+        return []
+
+    def _add_layer_inserted(self) -> None:
+        """Add inserted layers to current QGIS project"""
+        LayerLoad().load_layer_list(self._get_layer_inserted(), self.group_config.name)
+
+    def _get_layer_inserted(self) -> List[MenuLayerConfig]:
+        """Get layer inserted for this group
+
+        :return: list of inserted layer
+        :rtype: List[MenuLayerConfig]
+        """
+        layer_inserted = []
+        for child in self.group_config.childs:
+            if isinstance(child, MenuLayerConfig):
+                layer_inserted.append(child)
+        return layer_inserted
+
 
 class LayerItem(QgsDataItem):
     """QgsDataItem for layer"""
@@ -216,9 +248,6 @@ class LayerItem(QgsDataItem):
         """Load layer at double click"""
         self.addLayer()
         return True
-
-    # def hasChildren(self) -> bool:
-    #    return False
 
     def actions(self, parent: QWidget) -> List[QAction]:
         """Return list of available actions for layer
