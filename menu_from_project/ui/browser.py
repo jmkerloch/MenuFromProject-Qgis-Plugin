@@ -127,7 +127,13 @@ class ProjectCollection(QgsDataCollectionItem):
         children = []
         for child in self.project_menu_config.root_group.childs:
             if isinstance(child, MenuLayerConfig):
-                children.append(LayerItem(parent=self, layer_config=child))
+                children.append(
+                    LayerItem(
+                        parent=self,
+                        layer_config=child,
+                        group_name=self.project_menu_config.root_group.name,
+                    )
+                )
             elif isinstance(child, MenuGroupConfig):
                 children.append(GroupItem(parent=self, group_config=child))
         return children
@@ -158,24 +164,68 @@ class GroupItem(QgsDataCollectionItem):
         children = []
         for child in self.group_config.childs:
             if isinstance(child, MenuLayerConfig):
-                children.insert(0, LayerItem(parent=self, layer_config=child))
+                children.insert(
+                    0,
+                    LayerItem(
+                        parent=self,
+                        layer_config=child,
+                        group_name=self.group_config.name,
+                    ),
+                )
             elif isinstance(child, MenuGroupConfig):
                 children.insert(0, GroupItem(parent=self, group_config=child))
         return children
+
+    def actions(self, parent: QWidget) -> List[QAction]:
+        """Return list of available actions for layer
+
+        :param parent: parent
+        :type parent: QWidget
+        :return: list of available actions
+        :rtype: List[QAction]
+        """
+        settings = PlgOptionsManager().get_plg_settings()
+
+        if len(self._get_layer_inserted()) != 0 and settings.optionLoadAll:
+            ac_show_layer = QAction(self.tr("Load all"), parent)
+            ac_show_layer.triggered.connect(self._add_layer_inserted)
+            return [ac_show_layer]
+        return []
+
+    def _add_layer_inserted(self) -> None:
+        """Add inserted layers to current QGIS project"""
+        LayerLoad().load_layer_list(self._get_layer_inserted(), self.group_config.name)
+
+    def _get_layer_inserted(self) -> List[MenuLayerConfig]:
+        """Get layer inserted for this group
+
+        :return: list of inserted layer
+        :rtype: List[MenuLayerConfig]
+        """
+        layer_inserted = []
+        for child in self.group_config.childs:
+            if isinstance(child, MenuLayerConfig):
+                layer_inserted.append(child)
+        return layer_inserted
 
 
 class LayerItem(QgsDataItem):
     """QgsDataItem for layer"""
 
-    def __init__(self, parent: QgsDataItem, layer_config: MenuLayerConfig):
+    def __init__(
+        self, parent: QgsDataItem, layer_config: MenuLayerConfig, group_name: str
+    ):
         """Constructor for a QgsDataItem to display layer configuration
 
         :param parent: parent
         :type parent: QgsDataItem
         :param layer_config: layer configuration
         :type layer_config: MenuLayerConfig
+        :param group_name: group name
+        :type group_name: str
         """
         self.layer_config = layer_config
+        self.group_name = group_name
         self.path = os.path.join(parent.path, layer_config.name)
         QgsDataItem.__init__(
             self, QgsDataItem.Custom, parent, layer_config.name, self.path
@@ -199,9 +249,6 @@ class LayerItem(QgsDataItem):
         self.addLayer()
         return True
 
-    # def hasChildren(self) -> bool:
-    #    return False
-
     def actions(self, parent: QWidget) -> List[QAction]:
         """Return list of available actions for layer
 
@@ -221,11 +268,4 @@ class LayerItem(QgsDataItem):
 
     def addLayer(self) -> None:
         """Add layer to current QGIS project"""
-        LayerLoad().loadLayer(
-            self.layer_config.filename,
-            self.layer_config.filename,
-            self.layer_config.layer_id,
-            None,
-            self.layer_config.visible,
-            self.layer_config.expanded,
-        )
+        LayerLoad().load_layer(self.layer_config, self.group_name)
